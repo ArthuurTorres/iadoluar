@@ -1,0 +1,23 @@
+services:
+  ia-sdr:
+    build: .
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+    command: node --watch src/server.js
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./data:/app/data
+      - ./src:/app/src
+      - ./public:/app/public
+      - /app/node_modules
+    # Para comunicar com a Evolution API via rede interna Docker,
+    # descomente as linhas abaixo e ajuste EVOLUTION_API_URL para http://evolution-api:8080
+    # networks:
+    #   - evo-network
+
+# networks:
+#   evo-network:
+#     external: true
