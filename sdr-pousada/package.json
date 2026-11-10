@@ -1,0 +1,25 @@
+{
+  "name": "ia-sdr-pousada",
+  "version": "1.0.0",
+  "description": "IA SDR para atendimento de hóspedes via WhatsApp",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": true
+  },
+  "devDependencies": {
+    "playwright": "^1.64.0"
+  }
+}

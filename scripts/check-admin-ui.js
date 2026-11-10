@@ -118,7 +118,7 @@ const check = (name, cond, detail) => (cond ? ok : bad).push(`${name}${detail ? 
   check('Botão restaurar versão existe', (await page.$('#btn-reset-prompt')) !== null);
 
   // ---------- Navegação ----------
-  for (const par of [['panel', 'view-panel'], ['conversations', 'view-conversations'], ['functions', 'view-functions'], ['prompt', 'view-prompt']]) {
+  for (const par of [['panel', 'view-panel'], ['conversations', 'view-conversations'], ['functions', 'view-functions'], ['prompt', 'view-prompt'], ['llm-config', 'view-llm-config']]) {
     await page.click('[data-screen="' + par[0] + '"]');
     await page.waitForTimeout(600);
     const active = await page.evaluate((id) => {
@@ -131,7 +131,7 @@ const check = (name, cond, detail) => (cond ? ok : bad).push(`${name}${detail ? 
   // ---------- Mobile ----------
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(500);
-  for (const nav of ['panel', 'conversations', 'functions', 'prompt']) {
+  for (const nav of ['panel', 'conversations', 'functions', 'prompt', 'llm-config']) {
     await page.click('[data-screen="' + nav + '"]');
     await page.waitForTimeout(500);
     const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

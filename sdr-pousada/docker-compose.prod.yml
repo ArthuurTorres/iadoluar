@@ -1,0 +1,11 @@
+services:
+  ia-sdr:
+    build: .
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production

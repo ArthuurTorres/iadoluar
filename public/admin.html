@@ -72,6 +72,7 @@
 <button class="nav-item" data-screen="conversations"><svg class="ico ico-sm"><use href="#i-chat"/></svg> Hóspedes</button>
 <button class="nav-item" data-screen="functions"><svg class="ico ico-sm"><use href="#i-concierge"/></svg> Serviços</button>
 <button class="nav-item" data-screen="prompt"><svg class="ico ico-sm"><use href="#i-book"/></svg> Manual da IA</button>
+<button class="nav-item" data-screen="llm-config"><svg class="ico ico-sm"><use href="#i-cpu"/></svg> Configurações da IA</button>
 </nav>
 <div class="topbar-right">
 <div class="topbar-search">
@@ -188,6 +189,74 @@
 </div>
 <div id="log-box" class="log-box">Carregando registros...</div>
 <div id="log-summary" class="log-summary"></div>
+</section>
+</div><!-- /view-panel -->
+
+<!-- CONFIGURAÇÕES DA IA -->
+<div id="view-llm-config" class="screen">
+<div class="page-head">
+<div>
+<h1>Configurações da IA</h1>
+<p class="page-sub">Modelo, provedor e parâmetros de inferência</p>
+</div>
+</div>
+<div class="home-grid">
+<section class="card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-cpu"/></svg></span> Provedor e Modelo</h2>
+<div class="rhythm-list">
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="llm-provider">Provedor</label></div>
+<select id="llm-provider" class="rhythm-slider" style="height:36px;padding:0 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface)"></select>
+</div>
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="llm-model">Modelo</label></div>
+<select id="llm-model" class="rhythm-slider" style="height:36px;padding:0 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface)"></select>
+</div>
+<div class="rhythm-row" id="llm-model-custom-row" style="display:none">
+<div class="rhythm-head"><label for="llm-model-custom">Nome do modelo</label></div>
+<input type="text" id="llm-model-custom" class="rhythm-slider" style="height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface)" placeholder="Ex: meu-modelo-customizado">
+</div>
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="llm-baseurl">Base URL</label></div>
+<input type="text" id="llm-baseurl" class="rhythm-slider" style="height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface)" placeholder="https://api.openai.com/v1">
+</div>
+</div>
+<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+<span id="llm-apikey-status" class="chip" style="font-size:12px">—</span>
+</div>
+</section>
+<section class="card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-bolt"/></svg></span> Parâmetros</h2>
+<div class="rhythm-list">
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="llm-temperature">Temperatura</label><output id="out-llm-temp" class="rhythm-value">—</output></div>
+<input type="range" id="llm-temperature" class="rhythm-slider" min="0" max="2" step="0.1">
+</div>
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="llm-maxtokens">Max Tokens</label><output id="out-llm-tokens" class="rhythm-value">—</output></div>
+<input type="range" id="llm-maxtokens" class="rhythm-slider" min="100" max="4096" step="50">
+</div>
+</div>
+<div class="rhythm-foot" style="margin-top:16px">
+<button class="btn-secondary" id="btn-test-llm"><svg class="ico ico-sm"><use href="#i-bolt"/></svg> Testar conexão</button>
+<button class="btn-primary" id="btn-save-llm"><svg class="ico ico-sm"><use href="#i-save"/></svg> Salvar configuração</button>
+</div>
+<div id="llm-feedback" class="feedback"></div>
+</section>
+</div>
+<section class="card activity-card" style="margin-top:16px">
+<div class="activity-head">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-book"/></svg></span> Qual modelo escolher</h2>
+</div>
+<p class="hint">Para o atendimento do Casarão do Luar, a ordem abaixo costuma dar o melhor resultado. O que decide o custo é o volume de mensagens, não o preço por milhão isolado.</p>
+<div id="llm-recommend-box" class="log-box" style="max-height:none;overflow-x:auto">Carregando...</div>
+</section>
+<section class="card activity-card" style="margin-top:16px">
+<div class="activity-head">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-restore"/></svg></span> Histórico de alterações</h2>
+<button class="btn-secondary btn-sm" id="btn-refresh-llm-history"><svg class="ico ico-sm"><use href="#i-refresh"/></svg> Atualizar</button>
+</div>
+<div id="llm-history-box" class="log-box" style="max-height:300px">Carregando...</div>
 </section>
 </div><!-- CONVERSAS -->
 <div id="view-conversations" class="screen">
@@ -412,6 +481,7 @@ opts=opts||{};
 opts.headers=opts.headers||{};
 opts.headers['Authorization']='Bearer '+getToken();
 if(opts.body&&typeof opts.body==='object'){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.body)}
+else if(typeof opts.body==='string'){opts.headers['Content-Type']=opts.headers['Content-Type']||'application/json'}
 return fetch(API_BASE+path,opts).then(function(r){return r.json().catch(function(){return{}})})
 }
 function fmtNum(n){return (n===null||n===undefined||isNaN(n))?'—':String(n)}
@@ -1252,6 +1322,133 @@ e.preventDefault();
 var s=$('cmd-search');if(s)s.focus();
 }
 });
+// === LLM CONFIG ===
+var llmProviders={};
+var llmConfigLoaded=false;
+function fillModelSelect(provider,currentModel){
+  var sel=$('llm-model');var p=llmProviders[provider];sel.innerHTML='';
+  var models=(p&&p.models)||[];
+  models.forEach(function(m){
+    var o=document.createElement('option');o.value=m.id;
+    o.textContent=m.label+' · '+m.ctx+' · '+m.cost;
+    sel.appendChild(o);
+  });
+  var known=models.some(function(m){return m.id===currentModel});
+  var o=document.createElement('option');o.value='__custom__';o.textContent='Outro (digitar manualmente)';sel.appendChild(o);
+  if(currentModel&&known){sel.value=currentModel;}
+  else if(currentModel){sel.value='__custom__';}
+  else if(models.length){sel.value=p.defaultModel||models[0].id;}
+  toggleCustomModel();
+  if($('llm-model').value==='__custom__'){$('llm-model-custom').value=currentModel||'';}
+}
+function toggleCustomModel(){
+  $('llm-model-custom-row').style.display=$('llm-model').value==='__custom__'?'':'none';
+}
+function currentModelValue(){
+  return $('llm-model').value==='__custom__'?$('llm-model-custom').value.trim():$('llm-model').value;
+}
+function renderRecommendation(){
+  var box=$('llm-recommend-box');
+  if(!box)return;
+  var rows=[];
+  Object.keys(llmProviders).forEach(function(k){
+    (llmProviders[k].models||[]).forEach(function(m){
+      rows.push({provider:llmProviders[k].name,id:m.id,label:m.label,ctx:m.ctx,cost:m.cost,rec:m.rec||''});
+    });
+  });
+  if(!rows.length){box.innerHTML='<div class="conv-empty-sm">Catálogo indisponível.</div>';return;}
+  var html='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'
+    +'<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Provedor</th>'
+    +'<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Modelo</th>'
+    +'<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Contexto</th>'
+    +'<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Custo</th>'
+    +'<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Quando usar</th>'
+    +'</tr></thead><tbody>';
+  rows.forEach(function(r){
+    html+='<tr>'
+      +'<td style="padding:8px;border-bottom:1px solid var(--border)">'+r.provider+'</td>'
+      +'<td style="padding:8px;border-bottom:1px solid var(--border)"><strong>'+r.label+'</strong><br><code style="font-size:11px;opacity:.7">'+r.id+'</code></td>'
+      +'<td style="padding:8px;border-bottom:1px solid var(--border)">'+r.ctx+'</td>'
+      +'<td style="padding:8px;border-bottom:1px solid var(--border)">'+r.cost+'</td>'
+      +'<td style="padding:8px;border-bottom:1px solid var(--border)">'+r.rec+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table>';
+  box.innerHTML=html;
+}
+function loadLlmConfig(){
+  api('/admin/llm/config').then(function(d){
+    if(!d||!d.config)return;
+    llmProviders=d.providers||{};
+    llmConfigLoaded=true;
+    var sel=$('llm-provider');sel.innerHTML='';
+    Object.keys(llmProviders).forEach(function(k){
+      var o=document.createElement('option');o.value=k;o.textContent=llmProviders[k].name;sel.appendChild(o);
+    });
+    sel.value=d.config.provider||'openai';
+    fillModelSelect(d.config.provider||'openai',d.config.model||'');
+    $('llm-baseurl').value=d.config.baseUrl||'';
+    $('llm-temperature').value=d.config.temperature!=null?d.config.temperature:0.7;
+    $('out-llm-temp').textContent=($('llm-temperature').value);
+    $('llm-maxtokens').value=d.config.maxTokens||500;
+    $('out-llm-tokens').textContent=($('llm-maxtokens').value);
+    $('llm-apikey-status').textContent=d.hasApiKey?'Chave API configurada':'Chave API ausente';
+    $('llm-apikey-status').className=d.hasApiKey?'chip success':'chip error';
+    renderRecommendation();
+    loadLlmHistory();
+  }).catch(function(e){$('llm-feedback').textContent='Erro ao carregar: '+e.message;$('llm-feedback').className='feedback error'});
+}
+function loadLlmHistory(){
+  api('/admin/llm/history').then(function(d){
+    var box=$('llm-history-box');
+    if(!d||!d.history||!d.history.length){box.innerHTML='<div class="conv-empty-sm">Nenhuma alteração registrada.</div>';return;}
+    var html='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="text-align:left;padding:6px">Data</th><th style="text-align:left;padding:6px">Provedor</th><th style="text-align:left;padding:6px">Modelo</th><th style="text-align:right;padding:6px">Ação</th></tr></thead><tbody>';
+    d.history.forEach(function(h){
+      var dt=new Date(h.timestamp).toLocaleString('pt-BR');
+      html+='<tr><td style="padding:6px;border-bottom:1px solid var(--border)">'+dt+'</td><td style="padding:6px;border-bottom:1px solid var(--border)">'+h.provider+'</td><td style="padding:6px;border-bottom:1px solid var(--border)">'+h.model+'</td><td style="padding:6px;border-bottom:1px solid var(--border);text-align:right"><button class="btn-secondary btn-sm llm-restore-btn" data-id="'+h.id+'">Restaurar</button></td></tr>';
+    });
+    html+='</tbody></table>';
+    box.innerHTML=html;
+    box.querySelectorAll('.llm-restore-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        if(!confirm('Restaurar esta configuração?'))return;
+        api('/admin/llm/restore',{method:'POST',body:{id:this.dataset.id}}).then(function(r){
+          if(r&&r.ok){$('llm-feedback').textContent='Configuração restaurada';$('llm-feedback').className='feedback success';loadLlmConfig();}
+          else{$('llm-feedback').textContent='Erro: '+(r&&r.error||'desconhecido');$('llm-feedback').className='feedback error';}
+        }).catch(function(e){$('llm-feedback').textContent='Erro: '+e.message;$('llm-feedback').className='feedback error'});
+      });
+    });
+  }).catch(function(){});
+}
+$('llm-provider').addEventListener('change',function(){
+  var p=llmProviders[this.value];
+  if(p){$('llm-baseurl').value=p.baseUrl;fillModelSelect(this.value,p.defaultModel);}
+});
+$('llm-model').addEventListener('change',toggleCustomModel);
+$('llm-temperature').addEventListener('input',function(){$('out-llm-temp').textContent=this.value});
+$('llm-maxtokens').addEventListener('input',function(){$('out-llm-tokens').textContent=this.value});
+$('btn-save-llm').addEventListener('click',function(){
+  this.disabled=true;$('llm-feedback').textContent='Salvando...';$('llm-feedback').className='feedback';
+  var payload={provider:$('llm-provider').value,model:currentModelValue(),baseUrl:$('llm-baseurl').value.trim(),temperature:parseFloat($('llm-temperature').value),maxTokens:parseInt($('llm-maxtokens').value,10)};
+  api('/admin/llm/config',{method:'POST',body:payload}).then(function(r){
+    if(r&&r.ok){$('llm-feedback').textContent='Configuração salva';$('llm-feedback').className='feedback success';loadLlmHistory();}
+    else{$('llm-feedback').textContent='Erro: '+(r&&r.error||'desconhecido');$('llm-feedback').className='feedback error';}
+  }).catch(function(e){$('llm-feedback').textContent='Erro: '+e.message;$('llm-feedback').className='feedback error'})
+  .finally(function(){$('btn-save-llm').disabled=false});
+});
+$('btn-test-llm').addEventListener('click',function(){
+  this.disabled=true;$('llm-feedback').textContent='Testando conexão...';$('llm-feedback').className='feedback';
+  var payload={provider:$('llm-provider').value,model:currentModelValue(),baseUrl:$('llm-baseurl').value.trim(),temperature:parseFloat($('llm-temperature').value),maxTokens:parseInt($('llm-maxtokens').value,10)};
+  api('/admin/llm/test',{method:'POST',body:payload}).then(function(r){
+    if(r&&r.ok){$('llm-feedback').textContent='Conexão OK — resposta: "'+r.reply+'"';$('llm-feedback').className='feedback success';}
+    else{$('llm-feedback').textContent='Falha: '+(r&&r.error||'desconhecido');$('llm-feedback').className='feedback error';}
+  }).catch(function(e){$('llm-feedback').textContent='Erro: '+e.message;$('llm-feedback').className='feedback error'})
+  .finally(function(){$('btn-test-llm').disabled=false});
+});
+$('btn-refresh-llm-history').addEventListener('click',loadLlmHistory);
+// Carrega config LLM quando a tela é aberta
+var origShowScreen=showScreen;
+showScreen=function(name){origShowScreen(name);if(name==='llm-config')loadLlmConfig()};
 // AUTO-LOGIN
 var saved=getToken();
 if(saved){$('screen-login').style.display='none';$('screen-panel').classList.add('active');renderGreeting();showScreen('panel')}

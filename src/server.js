@@ -10,7 +10,7 @@ const { info: logInfo, warn: logWarn, error: logError } = require('./utils/logge
 const iaSwitch = require('./utils/switch');
 const { getSettings, updateSettings } = require('./utils/settings');
 const { listHandoffs, resumeAI, triggerHandoff } = require('./utils/handoff');
-const { clearHistory, appendMessage } = require('./utils/context');
+const { clearHistory, appendMessage, markQuotePresented } = require('./utils/context');
 const promptHistory = require('./utils/promptHistory');
 const { parseLines: parseLogLines, summarize: summarizeLogs, CATEGORIES: LOG_CATEGORIES } = require('./utils/logParser');
 
@@ -236,6 +236,11 @@ async function handleMessage(phoneNumber, text, pushName) {
             break;
           }
           logInfo('[handler] Reply sent successfully', { phoneNumber });
+          // Só agora o cliente viu a cotação: a flag nasce do envio confirmado,
+          // nunca da geração. Falha de entrega mantém quotePresented = false.
+          if (result.quoteGenerated) {
+            markQuotePresented(phoneNumber);
+          }
           if (result.sendLocationAfterReply) {
             await sendLocationPin(phoneNumber);
           }
@@ -244,6 +249,7 @@ async function handleMessage(phoneNumber, text, pushName) {
 
       case 'multi_reply':
         if (Array.isArray(result.contents)) {
+          let allPartsSent = true;
           for (let i = 0; i < result.contents.length; i++) {
             const msg = result.contents[i];
             if (!msg) continue;
@@ -258,6 +264,7 @@ async function handleMessage(phoneNumber, text, pushName) {
             const sentPart = await sendText(phoneNumber, msg);
             if (!sentPart || sentPart.success !== true) {
               logWarn('[handler] multi_reply part failed, aborting remaining parts', { phoneNumber, part: i + 1 });
+              allPartsSent = false;
               break;
             }
             // O pin sai logo após o bloco que trouxe o contexto/endereço, nunca no meio dos blocos
@@ -265,7 +272,13 @@ async function handleMessage(phoneNumber, text, pushName) {
               await sendLocationPin(phoneNumber);
             }
           }
+          if (!allPartsSent) break;
           logInfo('[handler] Multi-reply sent successfully', { phoneNumber, parts: result.contents.length });
+          // A cotação pode ter saído como um dos blocos: só marca apresentada depois
+          // que todos foram entregues. Falha no meio aborta e mantém a flag falsa.
+          if (result.quoteGenerated) {
+            markQuotePresented(phoneNumber);
+          }
         }
         break;
 
@@ -370,6 +383,7 @@ app.post('/admin/clear-memory', (req, res) => {
       const DB_PATH = path.join(__dirname, '..', 'data', 'conversations.db');
       const database = new Database(DB_PATH);
       database.prepare('DELETE FROM conversations').run();
+      database.prepare('DELETE FROM conversation_state').run();
       database.close();
       // Limpar handoffs também
       const handoffPath = path.join(__dirname, '..', 'data', 'handoffs.json');
@@ -687,6 +701,132 @@ app.post('/admin/prompt/restore', express.json({ limit: '1mb' }), (req, res) => 
     }
     logError('[admin] Falha ao restaurar prompt:', err);
     return res.status(500).json({ error: 'Falha ao restaurar prompt' });
+  }
+});
+
+// === LLM Configuration Endpoints ===
+const llmConfig = require('./utils/llmConfig');
+
+// GET /admin/llm/config — retorna config atual (sem chave API) + provedores suportados
+app.get('/admin/llm/config', (req, res) => {
+  const token = req.query.token || req.headers['x-admin-token'] || (req.headers['authorization'] || '').replace('Bearer ', '');
+  if (!isValidAdminToken(token)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  try {
+    const config = llmConfig.getLlmConfig();
+    res.json({
+      config,
+      hasApiKey: llmConfig.hasApiKey(),
+      providers: llmConfig.SUPPORTED_PROVIDERS,
+      limits: llmConfig.LIMITS
+    });
+  } catch (err) {
+    logError('[admin] Falha ao ler config LLM', err.message);
+    res.status(500).json({ error: 'Falha ao ler configuração do LLM' });
+  }
+});
+
+// POST /admin/llm/config — salva nova configuração com validação
+app.post('/admin/llm/config', (req, res) => {
+  const token = req.body?.token || req.headers['x-admin-token'] || (req.headers['authorization'] || '').replace('Bearer ', '');
+  if (!isValidAdminToken(token)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  try {
+    const body = req.body || {};
+    const hasParam = ['provider', 'model', 'baseUrl', 'temperature', 'maxTokens']
+      .some(k => body[k] !== undefined && body[k] !== null && body[k] !== '');
+    if (!hasParam) {
+      return res.status(400).json({ error: 'Nenhum parâmetro recebido. Envie Content-Type: application/json com os campos da configuração.' });
+    }
+    const saved = llmConfig.saveLlmConfig(body);
+    logInfo('[admin] Configuração LLM atualizada via painel', { provider: saved.provider, model: saved.model });
+    res.json({ ok: true, config: saved });
+  } catch (err) {
+    logError('[admin] Falha ao salvar config LLM', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /admin/llm/test — testa configuração candidata sem salvar
+app.post('/admin/llm/test', async (req, res) => {
+  const token = req.body?.token || req.headers['x-admin-token'] || (req.headers['authorization'] || '').replace('Bearer ', '');
+  if (!isValidAdminToken(token)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  const apiKey = process.env.LLM_API_KEY;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'LLM_API_KEY não configurada no servidor' });
+  }
+  const validated = llmConfig.validateConfig(req.body || {});
+  if (!validated) {
+    return res.status(400).json({ error: 'Configuração inválida' });
+  }
+  try {
+    const axios = require('axios');
+    const probe = [{ role: 'user', content: 'Responda apenas: OK' }];
+    let reply = '';
+    if (llmConfig.getApiStyle(validated.provider) === 'anthropic') {
+      const response = await axios.post(
+        `${validated.baseUrl}/messages`,
+        { model: validated.model, messages: probe, max_tokens: 10, temperature: 0 },
+        {
+          headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+          timeout: 15000
+        }
+      );
+      reply = response.data.content?.[0]?.text || '';
+    } else {
+      const response = await axios.post(
+        `${validated.baseUrl}/chat/completions`,
+        { model: validated.model, messages: probe, max_tokens: 10, temperature: 0 },
+        { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 15000 }
+      );
+      reply = response.data.choices?.[0]?.message?.content || '';
+    }
+    res.json({ ok: true, model: validated.model, reply: reply.substring(0, 100) });
+  } catch (err) {
+    const detail = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data).substring(0, 200)}` : err.message;
+    logError('[admin] Teste LLM falhou', detail);
+    res.status(400).json({ error: `Falha na conexão: ${detail}` });
+  }
+});
+
+// GET /admin/llm/history — histórico de alterações (últimas 20)
+app.get('/admin/llm/history', (req, res) => {
+  const token = req.query.token || req.headers['x-admin-token'] || (req.headers['authorization'] || '').replace('Bearer ', '');
+  if (!isValidAdminToken(token)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  try {
+    res.json({ history: llmConfig.getHistory() });
+  } catch (err) {
+    logError('[admin] Falha ao ler histórico LLM', err.message);
+    res.status(500).json({ error: 'Falha ao ler histórico' });
+  }
+});
+
+// POST /admin/llm/restore — restaura versão anterior pelo id
+app.post('/admin/llm/restore', (req, res) => {
+  const token = req.body?.token || req.headers['x-admin-token'] || (req.headers['authorization'] || '').replace('Bearer ', '');
+  if (!isValidAdminToken(token)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  const { id } = req.body || {};
+  if (typeof id !== 'string' || !id.trim()) {
+    return res.status(400).json({ error: 'Campo "id" é obrigatório' });
+  }
+  try {
+    const restored = llmConfig.restoreFromHistory(id.trim());
+    if (!restored) {
+      return res.status(404).json({ error: 'Versão não encontrada no histórico' });
+    }
+    logInfo('[admin] Configuração LLM restaurada via painel', { id, provider: restored.provider, model: restored.model });
+    res.json({ ok: true, config: restored });
+  } catch (err) {
+    logError('[admin] Falha ao restaurar config LLM', err.message);
+    res.status(500).json({ error: 'Falha ao restaurar configuração' });
   }
 });
 

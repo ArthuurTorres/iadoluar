@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IA do Luar</title>
+<meta name="theme-color" content="#f7f4ef">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="alternate icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 8.1-8.1M16.5 4.5l3 3"/><path d="m14.3 6.7 3 3"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></symbol>
+<symbol id="i-concierge" viewBox="0 0 24 24"><path d="M3 18h18"/><path d="M4 15a8 8 0 0 1 16 0"/><path d="M12 7V4"/><path d="M12 21h.01"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.9 9.9 0 0 1-4-.8L3 21l1.9-4.6A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4Z"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></symbol>
+<symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8Z"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></symbol>
+<symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0 5 5l-9.4 9.4a2.8 2.8 0 0 1-4-4L15.7 7.3"/><path d="m14.7 6.3 3-3 3 3-3 3"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4M9 14h.01M15 14h.01M9 17h6"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-restore" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-8-5"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 8 5"/><path d="M21 3v5h-5M3 21v-5h5"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8L3 5Z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="i-trend" viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 8-8"/><path d="M17 7h4v4"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-2h6l2 2h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+</defs></svg>
+
+<!-- LOGIN -->
+<div id="screen-login" class="login-wrapper">
+<div class="card login-card">
+<div class="login-mark"><svg class="ico ico-lg"><use href="#i-moon"/></svg></div>
+<h1>Casarão do Luar</h1>
+<p class="login-sub">Central de gestão da IA</p>
+<label for="login-token">Token de acesso</label>
+<input type="password" id="login-token" placeholder="Cole seu token admin..." autocomplete="off">
+<button class="btn-primary" id="btn-login" style="width:100%;margin-top:16px">Entrar</button>
+<div id="login-feedback" class="feedback"></div>
+</div>
+</div>
+<!-- DASHBOARD -->
+<div id="screen-panel" class="dashboard">
+<header class="topbar">
+<div class="topbar-inner">
+<div class="brand">
+<span class="brand-mark"><svg class="ico"><use href="#i-moon"/></svg></span>
+<span class="brand-name">Casarão do Luar</span>
+</div>
+<nav class="topnav" aria-label="Navegação principal">
+<button class="nav-item active" data-screen="panel"><svg class="ico ico-sm"><use href="#i-key"/></svg> Recepção</button>
+<button class="nav-item" data-screen="conversations"><svg class="ico ico-sm"><use href="#i-chat"/></svg> Hóspedes</button>
+<button class="nav-item" data-screen="functions"><svg class="ico ico-sm"><use href="#i-concierge"/></svg> Serviços</button>
+<button class="nav-item" data-screen="prompt"><svg class="ico ico-sm"><use href="#i-book"/></svg> Manual da IA</button>
+</nav>
+<div class="topbar-right">
+<div class="topbar-search">
+<svg class="ico ico-sm"><use href="#i-search"/></svg>
+<input type="text" id="cmd-search" placeholder="Buscar ou executar comando" aria-label="Buscar ou executar comando">
+<kbd>Ctrl K</kbd>
+</div>
+<button class="btn-logout" id="btn-logout" title="Sair"><svg class="ico ico-sm"><use href="#i-logout"/></svg><span class="logout-label">Sair</span></button>
+</div>
+</div>
+</header>
+
+<main class="main-content">
+<!-- INÍCIO -->
+<div id="view-panel" class="screen active">
+<div class="page-head">
+<div>
+<h1 id="greeting-title">Bom dia</h1>
+<p id="greeting-date" class="page-sub"></p>
+</div>
+</div>
+
+<div class="home-grid">
+<section class="card ai-card">
+<div class="ai-orb"><svg class="ico ico-lg"><use href="#i-concierge"/></svg></div>
+<div class="ai-state">
+<p id="status-text" class="ai-title">Verificando...</p>
+<p id="status-sub" class="ai-sub">Aguardando resposta</p>
+</div>
+<div id="status-dot" class="dot unknown" hidden></div>
+<div class="ai-segmented" role="group" aria-label="Estado da IA">
+<button class="seg-btn" id="btn-enable">Ligada</button>
+<button class="seg-btn" id="btn-disable">Pausada</button>
+</div>
+<div id="toggle-feedback" class="feedback" style="text-align:center"></div>
+<div class="ai-counters">
+<div class="ai-counter"><span class="ai-counter-num" id="count-cliente">—</span><span class="ai-counter-label">Hóspede</span></div>
+<div class="ai-counter"><span class="ai-counter-num" id="count-passos">—</span><span class="ai-counter-label">Passos da IA</span></div>
+<div class="ai-counter"><span class="ai-counter-num" id="count-respostas">—</span><span class="ai-counter-label">Respostas</span></div>
+</div>
+</section>
+
+<section class="card rhythm-card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-clock"/></svg></span> Ritmo de resposta</h2>
+<p class="hint">Ajusta o tempo da IA. Vale na hora, sem reiniciar o servidor.</p>
+<div class="rhythm-list">
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="set-debounce">Espera por mensagens seguidas</label><output id="out-debounce" class="rhythm-value">—</output></div>
+<input type="range" id="set-debounce" class="rhythm-slider" min="200" max="30000" step="100">
+</div>
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="set-typing">Digitando antes de responder</label><output id="out-typing" class="rhythm-value">—</output></div>
+<input type="range" id="set-typing" class="rhythm-slider" min="0" max="20000" step="100">
+</div>
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="set-human">Delay antes de gerar a resposta</label><output id="out-human" class="rhythm-value">—</output></div>
+<input type="range" id="set-human" class="rhythm-slider" min="0" max="20000" step="100">
+</div>
+<div class="rhythm-row">
+<div class="rhythm-head"><label for="set-inter">Intervalo entre blocos</label><output id="out-inter" class="rhythm-value">—</output></div>
+<input type="range" id="set-inter" class="rhythm-slider" min="0" max="20000" step="100">
+</div>
+</div>
+<div class="rhythm-timeline" id="rhythm-timeline" aria-hidden="true">
+<span class="tl-seg tl-debounce" id="tl-debounce"></span>
+<span class="tl-seg tl-typing" id="tl-typing"></span>
+<span class="tl-seg tl-human" id="tl-human"></span>
+<span class="tl-seg tl-inter" id="tl-inter"></span>
+</div>
+<div class="rhythm-foot">
+<div class="rhythm-presets">
+<button class="chip" data-preset="rapido">Rápido</button>
+<button class="chip" data-preset="natural">Natural</button>
+<button class="chip" data-preset="humano">Humano</button>
+</div>
+<span class="rhythm-total">Total estimado <strong id="rhythm-total">—</strong></span>
+<button class="btn-primary" id="btn-save-settings"><svg class="ico ico-sm"><use href="#i-save"/></svg> Salvar ritmo</button>
+</div>
+<div id="settings-feedback" class="feedback"></div>
+</section>
+</div><div class="home-grid home-grid-2">
+<section class="card system-card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-shield"/></svg></span> Sistema</h2>
+<ul class="sys-list">
+<li class="sys-row"><span class="sys-key">Servidor</span><span class="sys-val" id="sys-server">—</span></li>
+<li class="sys-row"><span class="sys-key">Prompt em vigor</span><span class="sys-val" id="sys-prompt">—</span></li>
+<li class="sys-row"><span class="sys-key">Última resposta da IA</span><span class="sys-val" id="sys-last-ai">—</span></li>
+</ul>
+</section>
+
+<section class="card danger-card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-tool"/></svg></span> Manutenção</h2>
+<p class="hint">Reconstrói o container na VPS com as últimas alterações do código. Leva ~30 segundos.</p>
+<button class="btn-secondary" id="btn-rebuild" style="width:100%"><svg class="ico ico-sm"><use href="#i-refresh"/></svg> Deploy &amp; rebuild</button>
+<div id="rebuild-overlay" class="rebuild-overlay"><span class="spinner"></span><span id="rebuild-text">Reconstruindo...</span></div>
+<div id="rebuild-feedback" class="feedback"></div>
+<div class="danger-zone">
+<span class="danger-label"><svg class="ico ico-sm"><use href="#i-alert"/></svg> Zona de perigo</span>
+<button class="btn-danger" id="btn-clear-memory" style="width:100%"><svg class="ico ico-sm"><use href="#i-trash"/></svg> Apagar todas as conversas</button>
+<div id="clear-feedback" class="feedback"></div>
+</div>
+</section>
+</div>
+
+<section class="card activity-card">
+<div class="activity-head">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-activity"/></svg></span> Atividade ao vivo</h2>
+<button class="btn-secondary btn-sm" id="btn-refresh-logs"><svg class="ico ico-sm"><use href="#i-refresh"/></svg> Atualizar</button>
+</div>
+<p class="hint">Cada linha é um passo do atendimento, em ordem cronológica. Clique em <strong>ver</strong> para abrir os detalhes técnicos.</p>
+<div class="log-toolbar">
+<div class="log-filters" id="log-filters"></div>
+<div class="log-search"><svg class="ico ico-sm"><use href="#i-search"/></svg><input type="text" id="log-search" placeholder="Buscar por mensagem, contato, erro..." aria-label="Buscar nos registros"></div>
+</div>
+<div id="log-box" class="log-box">Carregando registros...</div>
+<div id="log-summary" class="log-summary"></div>
+</section>
+</div><!-- CONVERSAS -->
+<div id="view-conversations" class="screen">
+<div class="page-head">
+<div>
+<h1>Hóspedes</h1>
+<p class="page-sub"><span id="conv-count">0</span> hóspedes no histórico</p>
+</div>
+</div>
+<div class="conv-layout">
+<aside class="conv-sidebar card">
+<div class="conv-sidebar-header">
+<h2>Hóspedes</h2>
+</div>
+<div class="conv-search"><svg class="ico ico-sm"><use href="#i-search"/></svg><input type="text" id="conv-search" placeholder="Buscar hóspede" aria-label="Buscar hóspede"></div>
+<div class="conv-filters">
+<button class="chip active" data-conv-filter="todos">Todos</button>
+<button class="chip" data-conv-filter="ia">IA atendendo</button>
+<button class="chip" data-conv-filter="humano">Aguardando humano</button>
+</div>
+<div id="conv-list" class="conv-list"><div class="conv-empty-sm">Carregando...</div></div>
+</aside>
+
+<section class="conv-detail card">
+<div id="conv-detail-empty" class="conv-detail-empty">
+<div class="empty-mark"><svg class="ico ico-lg"><use href="#i-chat"/></svg></div>
+<p class="empty-title">Nenhuma conversa selecionada</p>
+<p class="empty-sub">Escolha um hóspede na lista ao lado para ver o histórico completo do atendimento.</p>
+</div>
+<div id="handoff-bar" class="handoff-bar" style="display:none">
+<span class="handoff-text"><svg class="ico ico-sm"><use href="#i-user"/></svg> Esta conversa está com um atendente humano — a IA não responde.</span>
+<button class="btn-secondary btn-sm" id="btn-resume-ai">Devolver para a IA</button>
+</div>
+<div id="conv-header" class="conv-header" style="display:none">
+<div class="conv-avatar" id="conv-avatar">?</div>
+<div class="conv-ident">
+<div class="conv-name" id="conv-name">—</div>
+<div class="conv-phone" id="conv-phone">—</div>
+</div>
+<span class="conv-status" id="conv-status">IA atendendo</span>
+</div>
+<div id="conv-messages" class="conv-messages" style="display:none"></div>
+<div class="conv-composer" id="conv-composer" style="display:none">
+<div class="segmented" role="group" aria-label="Quem atende">
+<button class="seg-btn active" data-mode="ia">IA atende</button>
+<button class="seg-btn" data-mode="humano">Eu atendo</button>
+</div>
+<div class="composer-row">
+<input type="text" id="conv-reply" placeholder="Escreva uma resposta..." aria-label="Resposta">
+<button class="btn-primary btn-icon" id="btn-send-reply" title="Enviar" aria-label="Enviar"><svg class="ico ico-sm"><use href="#i-send"/></svg></button>
+</div>
+</div>
+</section>
+
+<aside class="conv-aside">
+<section class="card reserve-card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-calendar"/></svg></span> Dados da reserva</h2>
+<!-- TODO: a tabela `conversations` só guarda telefone/mensagem/timestamp. Datas, hóspedes e suíte exigem extração estruturada (Fase 2). -->
+<ul class="sys-list">
+<li class="sys-row"><span class="sys-key">Datas</span><span class="sys-val">—</span></li>
+<li class="sys-row"><span class="sys-key">Hóspedes</span><span class="sys-val">—</span></li>
+<li class="sys-row"><span class="sys-key">Suíte</span><span class="sys-val">—</span></li>
+<li class="sys-row"><span class="sys-key">Status</span><span class="sys-val">—</span></li>
+</ul>
+<button class="btn-secondary btn-sm" id="btn-copy-resume" style="width:100%"><svg class="ico ico-sm"><use href="#i-copy"/></svg> Copiar resumo</button>
+</section>
+<section class="card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-cpu"/></svg></span> O que a IA fez</h2>
+<!-- TODO: linha do tempo de funções por conversa depende de log correlacionado por telefone (Fase 2). -->
+<div class="empty-mini">Sem registro de funções nesta conversa.</div>
+</section>
+</aside>
+</div>
+</div><!-- FUNÇÕES -->
+<div id="view-functions" class="screen">
+<div class="page-head">
+<div>
+<h1>Serviços</h1>
+<p class="page-sub">O que a IA pode resolver pelo hóspede durante o atendimento</p>
+</div>
+<button class="btn-primary" id="btn-add-function"><svg class="ico ico-sm"><use href="#i-plus"/></svg> Novo serviço</button>
+</div>
+
+<div class="flow-strip card">
+<span class="flow-label">Como a IA decide</span>
+<div class="flow-icons">
+<span class="flow-icon"><svg class="ico ico-sm"><use href="#i-chat"/></svg></span>
+<span class="flow-arrow">→</span>
+<span class="flow-icon"><svg class="ico ico-sm"><use href="#i-cpu"/></svg></span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">Consulta</span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">Ação</span>
+<span class="flow-arrow">→</span>
+<span class="flow-step">Lógica</span>
+<span class="flow-arrow">→</span>
+<span class="flow-icon"><svg class="ico ico-sm"><use href="#i-send"/></svg></span>
+</div>
+</div>
+
+<div class="func-toolbar">
+<div class="func-filters" id="func-filters">
+<button class="chip active" data-func-filter="todas">Todas</button>
+<button class="chip" data-func-filter="consulta">Consulta</button>
+<button class="chip" data-func-filter="acao">Ação</button>
+<button class="chip" data-func-filter="logica">Lógica</button>
+</div>
+<div class="log-search"><svg class="ico ico-sm"><use href="#i-search"/></svg><input type="text" id="func-search" placeholder="Buscar serviço" aria-label="Buscar serviço"></div>
+</div>
+
+<div id="functions-list" class="functions-list"></div>
+<div id="functions-feedback" class="feedback"></div>
+<div class="btn-group" style="margin-top:16px">
+<button class="btn-primary" id="btn-save-functions"><svg class="ico ico-sm"><use href="#i-save"/></svg> Salvar ordem e edições</button>
+</div>
+</div>
+
+<!-- PROMPT IA -->
+<div id="view-prompt" class="screen">
+<div class="page-head">
+<div>
+<h1>Manual da IA</h1>
+<p class="page-sub">O texto que define como a IA recebe e orienta cada hóspede</p>
+</div>
+</div>
+
+<div class="prompt-layout">
+<aside class="card prompt-sections">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-grid"/></svg></span> Seções</h2>
+<p class="hint">Clique para ir à seção no editor.</p>
+<div id="prompt-sections" class="sections-list"></div>
+</aside>
+
+<section class="card prompt-main">
+<div class="prompt-tabs" role="tablist">
+<button class="tab-btn active" role="tab" data-tab="editor">Editor</button>
+<button class="tab-btn" role="tab" data-tab="preview">Pré-visualização</button>
+<button class="tab-btn" role="tab" data-tab="diff">Diferenças</button>
+</div>
+<div id="prompt-pane-editor" class="tab-pane active">
+<div class="editor-wrap">
+<div id="prompt-lines" class="editor-lines" aria-hidden="true"></div>
+<textarea id="prompt-textarea" class="editor-area" spellcheck="false" aria-label="Prompt da IA"></textarea>
+</div>
+</div>
+<div id="prompt-pane-preview" class="tab-pane">
+<div id="prompt-preview" class="prompt-preview"></div>
+</div>
+<div id="prompt-pane-diff" class="tab-pane">
+<div id="prompt-diff" class="prompt-diff"><div class="empty-mini">Edite o prompt para ver as diferenças em relação à versão salva.</div></div>
+</div>
+<div class="prompt-bar">
+<span class="prompt-status" id="prompt-status">sem alterações pendentes</span>
+<span class="prompt-chars" id="prompt-chars">0 caracteres</span>
+<button class="btn-secondary btn-sm" id="btn-reset-prompt"><svg class="ico ico-sm"><use href="#i-restore"/></svg> Restaurar versão salva</button>
+<button class="btn-primary btn-sm" id="btn-save-prompt"><svg class="ico ico-sm"><use href="#i-save"/></svg> Salvar e publicar</button>
+</div>
+<div id="prompt-feedback" class="feedback"></div>
+</section>
+
+<aside class="prompt-aside">
+<section class="card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-bot"/></svg></span> Testar prompt</h2>
+<!-- TODO: mini chat usa prompt em rascunho, sem publicar. Exige endpoint novo (Fase 2). -->
+<div class="empty-mini">Disponível após a Fase 2 — testa o rascunho sem publicar.</div>
+</section>
+<section class="card versions-card">
+<h2><span class="card-icon"><svg class="ico"><use href="#i-restore"/></svg></span> Versões</h2>
+<div id="prompt-history-list" class="hist-list"></div>
+<div id="prompt-history-feedback" class="feedback"></div>
+<div id="prompt-history-preview" class="hist-preview"></div>
+</section>
+</aside>
+</div>
+</div>
+</main>
+</div>
+
+<div id="func-modal-overlay" class="func-modal-overlay">
+<div class="func-modal">
+<h3 id="func-modal-title">Editar serviço</h3>
+<label for="func-edit-name">Nome</label>
+<input type="text" id="func-edit-name">
+<label for="func-edit-type">Tipo</label>
+<select id="func-edit-type">
+<option value="Consulta">Consulta</option>
+<option value="Ação">Ação</option>
+<option value="Lógica">Lógica</option>
+</select>
+<label for="func-edit-icon">Ícone</label>
+<input type="text" id="func-edit-icon" maxlength="4">
+<label for="func-edit-desc">Descrição</label>
+<textarea id="func-edit-desc"></textarea>
+<div class="modal-actions">
+<button class="btn-secondary" id="btn-func-cancel">Cancelar</button>
+<button class="btn-primary" id="btn-func-save">Salvar</button>
+</div>
+</div>
+</div><script>
+(function(){
+var API_BASE = window.location.origin;
+var originalPrompt = '';
+var currentConversation = '';
+var currentHumanTakeover = false;
+function $(id){return document.getElementById(id)}
+function getToken(){return localStorage.getItem('admin_token')||''}
+function setToken(t){localStorage.setItem('admin_token',t)}
+function clearToken(){localStorage.removeItem('admin_token')}
+function showScreen(name){
+document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
+document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
+var view=$('view-'+name);if(view)view.classList.add('active');
+var nav=document.querySelector('.nav-item[data-screen="'+name+'"]');if(nav)nav.classList.add('active');
+window.scrollTo({top:0,behavior:'instant'});
+if(name==='panel')fetchAll(getToken());
+if(name==='conversations')loadConversations(getToken());
+if(name==='prompt')loadPromptEditor(getToken());
+if(name==='functions')loadFunctions(getToken());
+}
+function api(path,opts){
+opts=opts||{};
+opts.headers=opts.headers||{};
+opts.headers['Authorization']='Bearer '+getToken();
+if(opts.body&&typeof opts.body==='object'){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(opts.body)}
+return fetch(API_BASE+path,opts).then(function(r){return r.json().catch(function(){return{}})})
+}
+function fmtNum(n){return (n===null||n===undefined||isNaN(n))?'—':String(n)}
+
+// SAUDAÇÃO E DATA
+function renderGreeting(){
+var now=new Date(),h=now.getHours();
+var g=h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite');
+if($('greeting-title'))$('greeting-title').textContent=g;
+if($('greeting-date')){
+var d=now.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+$('greeting-date').textContent=d.charAt(0).toUpperCase()+d.slice(1);
+}
+}
+
+// LOGIN
+$('btn-login').addEventListener('click',function(){
+var t=$('login-token').value.trim();
+if(!t){$('login-feedback').textContent='Digite o token';$('login-feedback').className='feedback error';return}
+setToken(t);
+api('/admin/status').then(function(d){
+if(d&&typeof d.enabled!=='undefined'){
+$('login-feedback').textContent='Autenticado!';$('login-feedback').className='feedback success';
+setTimeout(function(){$('screen-login').style.display='none';$('screen-panel').classList.add('active');renderGreeting();showScreen('panel')},400);
+}else{$('login-feedback').textContent='Token inválido';$('login-feedback').className='feedback error';clearToken()}
+}).catch(function(){$('login-feedback').textContent='Erro de conexão';$('login-feedback').className='feedback error';clearToken()})
+});
+$('login-token').addEventListener('keydown',function(e){if(e.key==='Enter')$('btn-login').click()});
+$('btn-logout').addEventListener('click',function(){clearToken();location.reload()});
+// NAV
+document.querySelectorAll('.nav-item').forEach(function(n){n.addEventListener('click',function(){showScreen(this.dataset.screen)})});
+
+// STATUS
+function updateStatus(d){
+var dot=$('status-dot'),txt=$('status-text'),sub=$('status-sub');
+var on=!!(d&&d.enabled);
+if(!d||typeof d.enabled==='undefined'){dot.className='dot unknown';txt.textContent='Indisponível';sub.textContent='Sem resposta do servidor';setSeg('ia',null);return}
+dot.className=on?'dot on':'dot off';
+txt.textContent=on?'IA ativa':'IA pausada';
+sub.textContent=d.toggledAt?'Desde '+new Date(d.toggledAt).toLocaleString('pt-BR'):(on?'Atendendo agora':'Sem atendimento automático');
+setSeg('ia',on?'on':'off');
+if($('sys-server'))$('sys-server').textContent=on?'online · porta '+(window.location.port||'80'):'IA pausada';
+}
+function setSeg(group,state){
+if(group!=='ia')return;
+var en=$('btn-enable'),di=$('btn-disable');
+if(!en||!di)return;
+en.classList.toggle('active',state==='on');
+di.classList.toggle('active',state==='off');
+}
+function fetchAll(token){
+api('/admin/status').then(updateStatus).catch(function(){updateStatus(null)});
+loadSettings();
+loadLogs();
+loadSystem();
+}
+function loadSystem(){
+api('/admin/prompt/history').then(function(d){
+var versions=(d&&d.versions)||[];
+var cur=d&&d.currentSha256;
+var v=null;
+for(var i=0;i<versions.length;i++){if(versions[i].sha256===cur){v=versions[i];break}}
+if($('sys-prompt'))$('sys-prompt').textContent=v?('v'+(v.seq||'?')+' · '+v.length+' chars'):(versions.length?'—':'sem versões');
+}).catch(function(){if($('sys-prompt'))$('sys-prompt').textContent='—'});
+}// RITMO DE RESPOSTA
+var PRESETS={rapido:{debounceMs:800,typingDelayMs:1500,humanDelayMs:2000,interMessageDelayMs:800},natural:{debounceMs:3000,typingDelayMs:4000,humanDelayMs:5000,interMessageDelayMs:1500},humano:{debounceMs:5000,typingDelayMs:7000,humanDelayMs:9000,interMessageDelayMs:2500}};
+var RHYTHM_IDS=['debounce','typing','human','inter'];
+function secs(ms){return (Number(ms||0)/1000).toFixed(ms%1000===0?0:1).replace('.',',')+'s'}
+function rhythmValues(){
+return {debounceMs:Number($('set-debounce').value),typingDelayMs:Number($('set-typing').value),humanDelayMs:Number($('set-human').value),interMessageDelayMs:Number($('set-inter').value)}
+}
+function paintRhythm(){
+var v=rhythmValues();
+$('out-debounce').textContent=secs(v.debounceMs);
+$('out-typing').textContent=secs(v.typingDelayMs);
+$('out-human').textContent=secs(v.humanDelayMs);
+$('out-inter').textContent=secs(v.interMessageDelayMs);
+var total=v.debounceMs+v.typingDelayMs+v.humanDelayMs+v.interMessageDelayMs;
+if($('rhythm-total'))$('rhythm-total').textContent=secs(total);
+var map={debounce:v.debounceMs,typing:v.typingDelayMs,human:v.humanDelayMs,inter:v.interMessageDelayMs};
+RHYTHM_IDS.forEach(function(k){
+var seg=$('tl-'+k);if(!seg)return;
+seg.style.flex=String(map[k]||0);
+});
+}
+function setRhythm(v){
+$('set-debounce').value=v.debounceMs;$('set-typing').value=v.typingDelayMs;
+$('set-human').value=v.humanDelayMs;$('set-inter').value=v.interMessageDelayMs;
+paintRhythm();
+}
+function loadSettings(){
+api('/admin/settings').then(function(d){
+var s=d&&d.settings?d.settings:null;if(!s)return;
+setRhythm({debounceMs:s.debounceMs,typingDelayMs:s.typingDelayMs,humanDelayMs:s.humanDelayMs,interMessageDelayMs:s.interMessageDelayMs});
+}).catch(function(){});
+}
+(function(){
+RHYTHM_IDS.forEach(function(k){
+var el=$('set-'+k);if(el)el.addEventListener('input',paintRhythm);
+});
+document.querySelectorAll('[data-preset]').forEach(function(b){
+b.addEventListener('click',function(){
+document.querySelectorAll('[data-preset]').forEach(function(x){x.classList.remove('active')});
+this.classList.add('active');
+setRhythm(PRESETS[this.dataset.preset]);
+});
+});
+paintRhythm();
+})();
+$('btn-save-settings').addEventListener('click',function(){
+var btn=this;btn.disabled=true;
+var v=rhythmValues();
+api('/admin/settings',{method:'POST',body:{
+debounceMs:v.debounceMs,
+typingDelayMs:v.typingDelayMs,
+humanDelayMs:v.humanDelayMs,
+interMessageDelayMs:v.interMessageDelayMs
+}}).then(function(d){
+if(d&&d.ok){$('settings-feedback').textContent='Ritmo salvo — vale imediatamente';$('settings-feedback').className='feedback success';loadSettings()}
+else{$('settings-feedback').textContent=(d&&d.error||'Falha ao salvar');$('settings-feedback').className='feedback error'}
+}).catch(function(e){$('settings-feedback').textContent='Erro: '+e.message;$('settings-feedback').className='feedback error'})
+.finally(function(){btn.disabled=false});
+});
+
+// ATIVIDADE AO VIVO
+var logState={entries:[],category:'todos',search:''};
+var LOG_CATS=['cliente','resposta','ia','handoff','admin','sistema','erro'];
+var LOG_NAMES={cliente:'Hóspede',resposta:'Respostas',ia:'IA',handoff:'Humano',admin:'Painel',sistema:'Sistema',erro:'Erros'};
+var CAT_ICON={cliente:'i-user',resposta:'i-send',ia:'i-bot',handoff:'i-user',admin:'i-tool',sistema:'i-shield',erro:'i-alert'};
+
+function dayLabel(ts){
+var d=new Date(ts);if(isNaN(d.getTime()))return 'Sem data';
+var today=new Date();var yest=new Date();yest.setDate(today.getDate()-1);
+var same=function(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate()};
+if(same(d,today))return 'Hoje';
+if(same(d,yest))return 'Ontem';
+return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+}
+function logCounts(){
+var c={};logState.entries.forEach(function(e){c[e.category]=(c[e.category]||0)+1});return c;
+}
+function renderLogFilters(){
+var box=$('log-filters');if(!box)return;
+var counts=logCounts();
+box.innerHTML='';
+var all=document.createElement('button');
+all.className='chip'+(logState.category==='todos'?' active':'');
+all.innerHTML='Tudo <span class="chip-count">'+logState.entries.length+'</span>';
+all.addEventListener('click',function(){logState.category='todos';renderLogFilters();renderLogEntries()});
+box.appendChild(all);
+LOG_CATS.forEach(function(cat){
+var n=counts[cat]||0;if(!n)return;
+var b=document.createElement('button');
+b.className='chip'+(logState.category===cat?' active':'');
+var lab=LOG_NAMES[cat]||cat;
+b.innerHTML=(cat==='erro'&&n?'':'')+lab+' <span class="chip-count">'+n+'</span>';
+b.addEventListener('click',function(){logState.category=cat;renderLogFilters();renderLogEntries()});
+box.appendChild(b);
+});
+}
+function matchEntry(e,q){
+if(!q)return true;
+var hay=[e.title,e.scopeLabel,e.contact&&e.contact.name,e.contact&&e.contact.phone,e.raw].join(' ').toLowerCase();
+return hay.indexOf(q)!==-1;
+}
+function renderLogEntries(){
+var box=$('log-box');if(!box)return;
+var q=logState.search.trim().toLowerCase();
+var list=logState.entries.filter(function(e){
+if(logState.category!=='todos'&&e.category!==logState.category)return false;
+return matchEntry(e,q);
+});
+box.innerHTML='';
+if(!list.length){
+box.innerHTML='<div class="log-empty">'+(logState.search||logState.category!=='todos'?'Nenhum registro com esse filtro.':'Sem registros recentes.')+'</div>';
+return;
+}
+var lastDay=null;
+list.forEach(function(e){
+var day=dayLabel(e.timestamp);
+if(day!==lastDay){
+lastDay=day;
+var sep=document.createElement('div');sep.className='log-day';sep.textContent=day;box.appendChild(sep);
+}
+var row=document.createElement('div');
+row.className='log-entry tone-'+(e.tone||'info')+' cat-'+e.category;
+var head=document.createElement('div');head.className='log-head';
+var ic=document.createElement('span');ic.className='log-icon';
+ic.innerHTML='<svg class="ico ico-sm"><use href="#'+(CAT_ICON[e.category]||'i-activity')+'"/></svg>';
+var time=document.createElement('span');time.className='log-time';time.textContent=e.time||'';
+head.appendChild(ic);head.appendChild(time);
+var body=document.createElement('div');body.className='log-body';
+var title=document.createElement('div');title.className='log-title';title.textContent=e.title||e.raw||'';
+var meta=document.createElement('div');meta.className='log-meta';
+var tag=document.createElement('span');tag.className='log-tag cat-'+e.category;tag.textContent=e.scopeLabel||'Sistema';
+meta.appendChild(tag);
+if(e.contact&&(e.contact.name||e.contact.phone)){
+var who=document.createElement('span');who.className='log-contact';
+who.textContent=(e.contact.name&&e.contact.phone)?(e.contact.name+' · '+e.contact.phone):(e.contact.name||e.contact.phone);
+meta.appendChild(who);
+}
+body.appendChild(title);body.appendChild(meta);
+row.appendChild(head);row.appendChild(body);
+head.appendChild(document.createElement('span')).className='log-spacer';
+if(e.detail&&Object.keys(e.detail).length){
+var tg=document.createElement('button');tg.className='log-toggle';tg.textContent='ver';
+var det=document.createElement('div');det.className='log-detail';
+var rows=[];Object.keys(e.detail).forEach(function(k){rows.push('<div class="kv"><span>'+k+'</span><span>'+String(e.detail[k])+'</span></div>')});
+det.innerHTML=rows.join('');
+det.hidden=true;
+tg.addEventListener('click',function(){
+var open=det.hidden;det.hidden=!open;tg.textContent=open?'ocultar':'ver';tg.classList.toggle('open',open);
+});
+row.appendChild(det);
+row.appendChild(tg);
+clickableDetail(row,det);
+}
+box.appendChild(row);
+});
+}
+function clickableDetail(row,det){row.addEventListener('click',function(ev){if(ev.target.closest('.log-toggle'))return;ev.stopPropagation();var tg=row.querySelector('.log-toggle');if(tg)tg.click()});}
+function loadLogs(){
+api('/admin/logs').then(function(d){
+logState.entries=(d&&d.entries)?d.entries:[];
+if(d&&d.summary){var s=d.summary;
+if($('count-cliente'))$('count-cliente').textContent=fmtNum(s.contacts||0);
+if($('count-passos'))$('count-passos').textContent=fmtNum(s.counts&&s.counts.ia||0);
+if($('count-respostas'))$('count-respostas').textContent=fmtNum(s.counts&&s.counts.resposta||0);
+var last=null;for(var i=logState.entries.length-1;i>=0;i--){if(logState.entries[i].category==='resposta'){last=logState.entries[i];break}}
+if($('sys-last-ai'))$('sys-last-ai').textContent=last?('há '+last.time):'—';
+if($('log-summary'))$('log-summary').textContent=(s.total||0)+' registros · '+(s.counts&&s.counts.erro||0)+' erro(s) · '+(s.contacts||0)+' contato(s)';
+}
+renderLogFilters();renderLogEntries();
+}).catch(function(){if($('log-box'))$('log-box').innerHTML='<div class="log-empty">Não foi possível carregar os registros.</div>'});
+}
+(function(){
+var s=$('log-search');
+if(s)s.addEventListener('input',function(){logState.search=this.value;renderLogEntries()});
+var r=$('btn-refresh-logs');
+if(r)r.addEventListener('click',function(){
+var self=this;self.disabled=true;logState.search='';
+if($('log-search'))$('log-search').value='';
+loadLogs();
+setTimeout(function(){self.disabled=false},500);
+});
+})();
+
+// TOGGLE IA
+$('btn-enable').addEventListener('click',function(){
+this.disabled=true;$('btn-disable').disabled=true;
+api('/admin/enable',{method:'POST'}).then(function(d){
+updateStatus(d);$('toggle-feedback').textContent='IA ativada';$('toggle-feedback').className='feedback success';
+}).catch(function(e){$('toggle-feedback').textContent='Erro: '+e.message;$('toggle-feedback').className='feedback error'})
+.finally(function(){$('btn-enable').disabled=false;$('btn-disable').disabled=false});
+});
+$('btn-disable').addEventListener('click',function(){
+this.disabled=true;$('btn-enable').disabled=true;
+api('/admin/disable',{method:'POST'}).then(function(d){
+updateStatus(d);$('toggle-feedback').textContent='IA pausada';$('toggle-feedback').className='feedback success';
+}).catch(function(e){$('toggle-feedback').textContent='Erro: '+e.message;$('toggle-feedback').className='feedback error'})
+.finally(function(){$('btn-enable').disabled=false;$('btn-disable').disabled=false});
+});
+
+// REBUILD
+$('btn-rebuild').addEventListener('click',function(){
+if(!confirm('Reconstruir o container na VPS? Isso leva ~30s.'))return;
+this.disabled=true;$('rebuild-overlay').classList.add('active');$('rebuild-feedback').textContent='Iniciando rebuild...';$('rebuild-feedback').className='feedback';
+api('/admin/rebuild',{method:'POST'}).then(function(d){
+if(d&&(d.ok||d.status==='in_progress')){
+$('rebuild-feedback').textContent='Rebuild em andamento...';
+var poll=setInterval(function(){
+api('/admin/rebuild/status').then(function(s){
+if(s&&!s.rebuilding){clearInterval(poll);$('rebuild-overlay').classList.remove('active');$('rebuild-feedback').textContent='Rebuild concluído';$('rebuild-feedback').className='feedback success';fetchAll(getToken())}
+}).catch(function(){clearInterval(poll);$('rebuild-overlay').classList.remove('active');$('rebuild-feedback').textContent='Erro ao verificar status';$('rebuild-feedback').className='feedback error'})
+},3000);
+}else{$('rebuild-overlay').classList.remove('active');$('rebuild-feedback').textContent=(d&&d.error||'Falha no rebuild');$('rebuild-feedback').className='feedback error'}
+}).catch(function(e){$('rebuild-overlay').classList.remove('active');$('rebuild-feedback').textContent='Erro: '+e.message;$('rebuild-feedback').className='feedback error'})
+.finally(function(){$('btn-rebuild').disabled=false});
+});// CONFIRMAÇÃO FORTE
+function confirmDestructive(title,message,onConfirm){
+if(document.querySelector('.confirm-overlay'))return;
+var ov=document.createElement('div');
+ov.className='func-modal-overlay confirm-overlay active';
+ov.innerHTML='<div class="func-modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">'+
+'<h3 id="confirm-title">'+title+'</h3>'+
+'<p class="hint">'+message+'</p>'+
+'<label for="confirm-input">Digite <strong>APAGAR</strong> para confirmar</label>'+
+'<input type="text" id="confirm-input" autocomplete="off" spellcheck="false">'+
+'<div class="modal-actions"><button class="btn-secondary" id="confirm-cancel">Cancelar</button><button class="btn-danger" id="confirm-ok" disabled>Apagar</button></div>'+
+'</div>';
+document.body.appendChild(ov);
+var input=ov.querySelector('#confirm-input'),ok=ov.querySelector('#confirm-ok');
+input.addEventListener('input',function(){ok.disabled=this.value.trim().toUpperCase()!=='APAGAR'});
+function close(){ov.remove()}
+ov.querySelector('#confirm-cancel').addEventListener('click',close);
+ov.addEventListener('click',function(e){if(e.target===ov)close()});
+document.addEventListener('keydown',function esc(e){if(e.key==='Escape'){close();document.removeEventListener('keydown',esc)}});
+ok.addEventListener('click',function(){close();onConfirm()});
+setTimeout(function(){input.focus()},60);
+}
+
+// CONVERSAS
+var convState={items:[],filter:'todos',search:''};
+function initials(phone,name){
+var src=(name||'').trim();
+if(src){var p=src.split(/\s+/);return (p[0][0]+(p[1]?p[1][0]:'')).toUpperCase()}
+var d=String(phone||'').replace(/\D/g,'');
+return d.slice(-2)||'?';
+}
+function prettyPhone(phone){
+var d=String(phone||'').replace(/\D/g,'');
+if(d.length===13)return '+'+d.slice(0,2)+' ('+d.slice(2,4)+') '+d.slice(4,9)+'-'+d.slice(9);
+if(d.length===12)return '+'+d.slice(0,2)+' ('+d.slice(2,4)+') '+d.slice(4,8)+'-'+d.slice(8);
+return d||'—';
+}
+function renderConvList(){
+var list=$('conv-list');if(!list)return;
+var q=convState.search.trim().toLowerCase();
+var items=convState.items.filter(function(c){
+if(convState.filter==='humano'&&!c.humanTakeover)return false;
+if(convState.filter==='ia'&&c.humanTakeover)return false;
+if(q&&String(c.phone_number||'').indexOf(q)===-1&&String(c.last_message||'').toLowerCase().indexOf(q)===-1)return false;
+return true;
+});
+list.innerHTML='';
+	if(!items.length){list.innerHTML='<div class="conv-empty-sm">Nenhum contato encontrado.</div>';return}
+	items=items.slice().reverse();
+	items.forEach(function(c){
+var div=document.createElement('div');
+div.className='conv-item'+(currentConversation===c.phone_number?' active':'');
+var av=document.createElement('div');av.className='conv-avatar';av.textContent=initials(c.phone_number);
+var main=document.createElement('div');main.className='conv-item-main';
+var top=document.createElement('div');top.className='conv-item-top';
+var phoneDiv=document.createElement('div');phoneDiv.className='conv-item-phone';phoneDiv.textContent=prettyPhone(c.phone_number);
+var timeSpan=document.createElement('span');timeSpan.className='conv-item-time';
+timeSpan.textContent=c.last_message_at?new Date(c.last_message_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+top.appendChild(phoneDiv);top.appendChild(timeSpan);
+var previewDiv=document.createElement('div');previewDiv.className='conv-item-preview';previewDiv.textContent=c.last_message||'';
+var metaDiv=document.createElement('div');metaDiv.className='conv-item-meta';
+var badge=document.createElement('span');
+badge.className='conv-badge-'+(c.humanTakeover?'human':'ia');
+badge.textContent=c.humanTakeover?'Aguardando humano':'IA atendendo';
+metaDiv.appendChild(badge);
+main.appendChild(top);main.appendChild(previewDiv);main.appendChild(metaDiv);
+div.appendChild(av);div.appendChild(main);
+div.addEventListener('click',function(){
+document.querySelectorAll('.conv-item').forEach(function(x){x.classList.remove('active')});
+div.classList.add('active');
+showConversation(c.phone_number,c.humanTakeover);
+});
+list.appendChild(div);
+});
+}
+function loadConversations(token){
+api('/admin/conversations').then(function(d){
+convState.items=(d&&d.conversations)?d.conversations:[];
+if($('conv-count'))$('conv-count').textContent=String(convState.items.length);
+renderConvList();
+}).catch(function(){if($('conv-list'))$('conv-list').innerHTML='<div class="conv-empty-sm">Erro ao carregar.</div>'});
+}
+(function(){
+var s=$('conv-search');
+if(s)s.addEventListener('input',function(){convState.search=this.value;renderConvList()});
+document.querySelectorAll('[data-conv-filter]').forEach(function(b){
+b.addEventListener('click',function(){
+document.querySelectorAll('[data-conv-filter]').forEach(function(x){x.classList.remove('active')});
+this.classList.add('active');convState.filter=this.dataset.convFilter;renderConvList();
+});
+});
+})();
+function showConversation(phone,humanTakeover){
+currentConversation=phone;currentHumanTakeover=!!humanTakeover;
+$('conv-detail-empty').style.display='none';
+$('conv-messages').style.display='flex';
+$('conv-header').style.display='flex';
+$('conv-composer').style.display='flex';
+$('handoff-bar').style.display=humanTakeover?'flex':'none';
+$('conv-avatar').textContent=initials(phone);
+$('conv-name').textContent=prettyPhone(phone);
+$('conv-phone').textContent=String(phone||'');
+$('conv-status').textContent=humanTakeover?'Aguardando humano':'IA atendendo';
+$('conv-status').className='conv-status '+(humanTakeover?'human':'ia');
+$('btn-resume-ai').textContent='Devolver para a IA';
+$('conv-messages').innerHTML='<div class="conv-empty-sm">Carregando...</div>';
+api('/admin/conversations/'+encodeURIComponent(phone)).then(function(d){
+var msgs=d&&d.messages?d.messages:[];
+var container=$('conv-messages');container.innerHTML='';
+if(!msgs.length){container.innerHTML='<div class="conv-empty-sm">Sem mensagens.</div>';return}
+var lastDay=null;
+msgs.forEach(function(m){
+var when=m.timestamp?new Date(m.timestamp):null;
+var day=when?dayLabel(m.timestamp):null;
+if(day&&day!==lastDay){
+lastDay=day;
+var sep=document.createElement('div');sep.className='msg-day';sep.textContent=day;container.appendChild(sep);
+}
+var div=document.createElement('div');
+div.className='msg '+(m.role==='user'?'user':'assistant');
+var span=document.createElement('span');span.textContent=m.content;div.appendChild(span);
+var timeDiv=document.createElement('div');timeDiv.className='msg-time';
+timeDiv.textContent=when?when.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+div.appendChild(timeDiv);
+container.appendChild(div);
+});
+container.scrollTop=container.scrollHeight;
+}).catch(function(){$('conv-messages').innerHTML='<div class="conv-empty-sm">Erro ao carregar.</div>'});
+}
+$('btn-resume-ai').addEventListener('click',function(){
+if(!currentConversation)return;
+if(!confirm('Devolver esta conversa para a IA?'))return;
+var btn=this;btn.disabled=true;
+api('/admin/handoffs',{method:'POST',body:{phoneNumber:currentConversation,action:'resume'}}).then(function(d){
+if(d&&d.ok){$('handoff-bar').style.display='none';$('conv-status').textContent='IA atendendo';$('conv-status').className='conv-status ia';loadConversations(getToken())}
+else{alert('Falha: '+((d&&d.error)||'erro desconhecido'))}
+}).catch(function(e){alert('Erro: '+e.message)})
+.finally(function(){btn.disabled=false});
+});
+document.querySelectorAll('.segmented .seg-btn[data-mode]').forEach(function(b){
+b.addEventListener('click',function(){
+document.querySelectorAll('.segmented .seg-btn[data-mode]').forEach(function(x){x.classList.remove('active')});
+this.classList.add('active');
+if(this.dataset.mode==='humano'){
+if(!currentConversation)return;
+api('/admin/handoffs',{method:'POST',body:{phoneNumber:currentConversation,action:'handoff'}}).then(function(d){
+if(d&&d.ok){$('handoff-bar').style.display='flex';$('conv-status').textContent='Aguardando humano';$('conv-status').className='conv-status human';loadConversations(getToken())}
+});
+}
+});
+});
+
+// LIMPAR MEMÓRIA
+$('btn-clear-memory').addEventListener('click',function(){
+confirmDestructive('Apagar todas as conversas','Isso remove o histórico de conversas e o estado de atendimento de todos os contatos. Não pode ser desfeito.',function(){
+var btn=$('btn-clear-memory');btn.disabled=true;
+api('/admin/clear-memory',{method:'POST'}).then(function(d){
+if(d&&d.ok){$('clear-feedback').textContent='Memória limpa';$('clear-feedback').className='feedback success';loadConversations(getToken())}
+else{$('clear-feedback').textContent=(d&&d.error||'Falha');$('clear-feedback').className='feedback error'}
+}).catch(function(e){$('clear-feedback').textContent='Erro: '+e.message;$('clear-feedback').className='feedback error'})
+.finally(function(){btn.disabled=false});
+});
+});// PROMPT
+var promptDirty=false;
+var promptLineTops=[];
+function promptMirror(){
+var ta=$('prompt-textarea');if(!ta)return null;
+var cs=getComputedStyle(ta);
+var m=$('prompt-mirror');
+if(!m){m=document.createElement('div');m.id='prompt-mirror';m.setAttribute('aria-hidden','true');document.body.appendChild(m)}
+var st=m.style;
+st.position='absolute';st.top='0';st.left='-9999px';st.visibility='hidden';st.pointerEvents='none';
+st.margin='0';st.padding='0';st.border='0';st.boxSizing='content-box';
+st.fontFamily=cs.fontFamily;st.fontSize=cs.fontSize;st.lineHeight=cs.lineHeight;st.fontWeight=cs.fontWeight;
+st.letterSpacing=cs.letterSpacing;st.tabSize=cs.tabSize;
+st.whiteSpace='pre-wrap';st.overflowWrap='break-word';st.wordBreak='break-word';
+var padL=parseFloat(cs.paddingLeft)||0,padR=parseFloat(cs.paddingRight)||0;
+st.width=Math.max(1,ta.clientWidth-padL-padR)+'px';
+return m;
+}
+function measureLines(lines){
+var m=promptMirror();if(!m)return null;
+m.textContent='';
+var txt=m.appendChild(document.createTextNode(ta_value()));
+var base=m.getBoundingClientRect().top;
+var lh=parseFloat(getComputedStyle(m).lineHeight)||20;
+var off=0,tops=[],n=txt.length;
+for(var i=0;i<lines.length;i++){
+var start=Math.min(off,n),end=Math.min(off+lines[i].length,n);
+var rg=document.createRange();
+var t=null;
+if(end>start){
+rg.setStart(txt,start);rg.setEnd(txt,end);
+var rects=rg.getClientRects();
+if(rects.length)t=rects[0].top-base;
+}else{
+rg.setStart(txt,start);rg.collapse(true);
+var rc=rg.getBoundingClientRect();
+t=(rc.height||rc.top)?rc.top-base:null;
+}
+tops.push(t);
+off+=lines[i].length+1;
+}
+var total=m.getBoundingClientRect().height;
+for(var a=0;a<tops.length;a++){if(tops[a]===null)tops[a]=a?tops[a-1]+lh:0}
+var out=[];
+for(var j=0;j<tops.length;j++){
+var nxt=j+1<tops.length?tops[j+1]:total;
+out.push({top:tops[j],h:Math.max(lh,nxt-tops[j])});
+}
+return out;
+}
+function ta_value(){var ta=$('prompt-textarea');return ta?ta.value:''}
+function paintGutter(ta,lines){
+var nums=$('prompt-lines');if(!nums)return;
+var prev=-1;
+for(var pass=0;pass<4;pass++){
+var meas=measureLines(lines);
+if(!meas)break;
+var html='';
+for(var i=0;i<lines.length;i++){
+var top=meas[i].top;
+var next=i+1<meas.length?meas[i+1].top:top+meas[i].h;
+html+='<span style="height:'+(Math.round(Math.max(0,next-top)*100)/100)+'px">'+(i+1)+'</span>';
+}
+nums.innerHTML=html;
+promptLineTops=meas.map(function(x){return x.top});
+if(nums.offsetWidth===prev)break;
+prev=nums.offsetWidth;
+}
+}
+var gutterTimer=null;
+function scheduleGutter(){
+if(gutterTimer)clearTimeout(gutterTimer);
+gutterTimer=setTimeout(function(){gutterTimer=null;var ta=$('prompt-textarea');if(ta)paintGutter(ta,ta.value.split('\n'))},120);
+}
+function fmtDate(iso){try{return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'})}catch(e){return iso}}
+function loadPromptEditor(token){
+$('prompt-feedback').textContent='Carregando...';$('prompt-feedback').className='feedback';
+api('/admin/prompt').then(function(d){
+var content=d&&d.prompt?d.prompt:'';
+$('prompt-textarea').value=content;originalPrompt=content;
+$('prompt-feedback').textContent='Prompt carregado';$('prompt-feedback').className='feedback success';
+paintEditor();renderSections();
+loadPromptHistory();
+}).catch(function(e){$('prompt-feedback').textContent='Erro: '+e.message;$('prompt-feedback').className='feedback error'});
+}
+function paintEditor(){
+var ta=$('prompt-textarea');if(!ta)return;
+var lines=ta.value.split('\n');
+var nums=$('prompt-lines');if(nums){paintGutter(ta,lines)}
+promptDirty=ta.value!==originalPrompt;
+paintPreview(lines);
+paintDiff(lines);
+if($('prompt-chars'))$('prompt-chars').textContent=ta.value.length.toLocaleString('pt-BR')+' caracteres';
+var st=$('prompt-status');
+if(st){st.textContent=promptDirty?'alterações não publicadas':'sem alterações pendentes';st.className='prompt-status'+(promptDirty?' dirty':'')}
+}
+function paintPreview(lines){
+var box=$('prompt-preview');if(!box)return;
+box.innerHTML='';
+var buf=[];
+function flush(){if(!buf.length)return;var p=document.createElement('p');p.textContent=buf.join(' ');box.appendChild(p);buf=[]}
+lines.forEach(function(line){
+var t=line.trim();
+if(t===''){flush();return}
+if(t.indexOf('##')===0){flush();var h=document.createElement('h3');h.textContent=t.replace(/^#+\s*/,'');box.appendChild(h);return}
+if(t.indexOf('#')===0){flush();var h2=document.createElement('h4');h2.textContent=t.replace(/^#+\s*/,'');box.appendChild(h2);return}
+if(/^[-*]\s+/.test(t)){flush();var li=document.createElement('li');li.textContent=t.replace(/^[-*]\s+/,'');box.appendChild(li);return}
+buf.push(t);
+});
+flush();
+}
+function paintDiff(lines){
+var box=$('prompt-diff');if(!box)return;
+if(!promptDirty){box.innerHTML='<div class="empty-mini">Sem diferenças: o editor está igual à versão publicada.</div>';return}
+var a=originalPrompt.split('\n'),b=lines;
+var out=[];var max=Math.max(a.length,b.length);
+for(var i=0;i<max;i++){
+var la=a[i],lb=b[i];
+if(la===lb){if(la!==undefined)out.push('<div class="d-line"><span class="d-no">'+(i+1)+'</span><span class="d-txt">'+esc(la)+'</span></div>')}
+else{
+if(la!==undefined)out.push('<div class="d-line del"><span class="d-no">'+(i+1)+'</span><span class="d-txt">'+esc(la)+'</span></div>');
+if(lb!==undefined)out.push('<div class="d-line add"><span class="d-no">'+(i+1)+'</span><span class="d-txt">'+esc(lb)+'</span></div>');
+}
+}
+box.innerHTML=out.join('')||'<div class="empty-mini">Sem diferenças.</div>';
+}
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+function renderSections(){
+var box=$('prompt-sections');if(!box)return;
+var ta=$('prompt-textarea');
+var lines=(ta?ta.value:'').split('\n');
+var items=[];
+lines.forEach(function(l,i){
+if(/^##\s+/.test(l))items.push({title:l.replace(/^#+\s*/,'').trim(),line:i});
+});
+box.innerHTML='';
+if(!items.length){box.innerHTML='<div class="empty-mini">O prompt não tem seções "##".</div>';return}
+items.forEach(function(s){
+var b=document.createElement('button');
+b.className='section-item';
+b.innerHTML='<span class="section-dot"></span><span class="section-name">'+esc(s.title)+'</span>';
+b.addEventListener('click',function(){gotoLine(s.line)});
+box.appendChild(b);
+});
+}
+function gotoLine(lineIdx){
+var ta=$('prompt-textarea');if(!ta)return;
+var pos=0,lines=ta.value.split('\n');
+for(var i=0;i<lineIdx&&i<lines.length;i++)pos+=lines[i].length+1;
+showTab('editor');
+ta.focus();ta.setSelectionRange(pos,pos+ (lines[lineIdx]||'').length);
+var lh=parseFloat(getComputedStyle(ta).lineHeight)||20;
+paintGutter(ta,lines);
+var top=promptLineTops.length?promptLineTops[Math.min(lineIdx,promptLineTops.length-1)]:lineIdx*lh;
+ta.scrollTop=Math.max(0,top);
+}
+function showTab(name){
+document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active',b.dataset.tab===name)});
+document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active')});
+var pane=$('prompt-pane-'+name);if(pane)pane.classList.add('active');
+if(name==='editor'){var ta=$('prompt-textarea');if(ta)paintGutter(ta,ta.value.split('\n'))}
+}
+document.querySelectorAll('.tab-btn').forEach(function(b){b.addEventListener('click',function(){showTab(this.dataset.tab)})});
+(function(){
+var ta=$('prompt-textarea');if(!ta)return;
+ta.addEventListener('input',function(){paintEditor();renderSections();scheduleGutter()});
+ta.addEventListener('scroll',function(){
+var nums=$('prompt-lines');if(nums)nums.scrollTop=ta.scrollTop;
+});
+window.addEventListener('resize',scheduleGutter);
+})();
+$('btn-save-prompt').addEventListener('click',function(){
+var self=this;self.disabled=true;
+$('prompt-feedback').textContent='Salvando...';$('prompt-feedback').className='feedback';
+api('/admin/prompt',{method:'POST',body:{prompt:$('prompt-textarea').value}}).then(function(d){
+if(d&&d.ok){
+originalPrompt=$('prompt-textarea').value;
+paintEditor();
+$('prompt-feedback').textContent='Prompt publicado';$('prompt-feedback').className='feedback success';
+loadPromptHistory();loadSystem();
+}else{$('prompt-feedback').textContent='Erro: '+(d&&d.error||'desconhecido');$('prompt-feedback').className='feedback error'}
+}).catch(function(e){$('prompt-feedback').textContent='Erro ao salvar: '+e.message;$('prompt-feedback').className='feedback error'})
+.finally(function(){self.disabled=false});
+});
+$('btn-reset-prompt').addEventListener('click',function(){
+if(!confirm('Restaurar o prompt para a última versão salva?'))return;
+$('prompt-textarea').value=originalPrompt;
+paintEditor();renderSections();
+$('prompt-feedback').textContent='Restaurado para a versão salva';$('prompt-feedback').className='feedback';
+});
+
+// VERSÕES
+function historyBadge(source){
+var map={admin:'painel',restore:'reversão','pre-restore':'antes de reverter',boot:'start'};
+var label=map[source]||source||'manual';
+var cls=source==='restore'?'hist-badge restore':(source==='boot'?'hist-badge boot':'hist-badge');
+return '<span class="'+cls+'">'+label+'</span>';
+}
+function loadPromptHistory(){
+var list=$('prompt-history-list');if(!list)return;
+list.innerHTML='<div class="empty-mini">Carregando...</div>';
+api('/admin/prompt/history').then(function(d){
+var versions=(d&&d.versions)||[];
+var currentSha=d&&d.currentSha256;
+if(!versions.length){list.innerHTML='<div class="empty-mini">Nenhuma versão registrada ainda. Salve o prompt para criar a primeira.</div>';return}
+list.innerHTML='';
+var currentMarked=false;
+versions.forEach(function(v){
+var isCurrent=!currentMarked&&v.sha256===currentSha;
+if(isCurrent)currentMarked=true;
+var item=document.createElement('div');
+item.className='hist-item'+(isCurrent?' current':'');
+var main=document.createElement('div');main.className='hist-main';
+var date=document.createElement('div');date.className='hist-date';date.textContent=fmtDate(v.createdAt)+(isCurrent?' — em vigor':'');
+var meta=document.createElement('div');meta.className='hist-meta';meta.textContent='v'+(v.seq||'?')+' · '+v.length+' caracteres'+(v.note?' · '+v.note:'');
+var snip=document.createElement('div');snip.className='hist-snippet';snip.textContent=v.snippet||'';
+main.appendChild(date);main.appendChild(meta);main.appendChild(snip);
+item.appendChild(main);
+var badges=document.createElement('div');badges.className='hist-badges';badges.innerHTML=historyBadge(v.source);item.appendChild(badges);
+var actions=document.createElement('div');actions.className='hist-actions';
+var btnView=document.createElement('button');btnView.className='btn-secondary btn-sm';
+btnView.innerHTML='<svg class="ico ico-sm"><use href="#i-eye"/></svg> Ver';
+btnView.addEventListener('click',function(){previewPromptVersion(v.id)});
+var btnRestore=document.createElement('button');btnRestore.className='btn-primary btn-sm';
+btnRestore.innerHTML='<svg class="ico ico-sm"><use href="#i-restore"/></svg> Restaurar';
+btnRestore.disabled=isCurrent;
+if(isCurrent)btnRestore.title='Esta já é a versão em vigor';
+btnRestore.addEventListener('click',function(){restorePromptVersion(v.id,btnRestore)});
+actions.appendChild(btnView);actions.appendChild(btnRestore);item.appendChild(actions);
+list.appendChild(item);
+});
+}).catch(function(e){list.innerHTML='<div class="empty-mini">Erro: '+e.message+'</div>'});
+}
+function previewPromptVersion(id){
+var box=$('prompt-history-preview');
+box.classList.add('open');box.textContent='Carregando...';
+api('/admin/prompt/history/'+encodeURIComponent(id)).then(function(d){
+if(d&&d.version){box.textContent=d.version.content}
+else{box.textContent='Versão não encontrada'}
+}).catch(function(e){box.textContent='Erro: '+e.message});
+}
+function restorePromptVersion(id,btn){
+if(btn)btn.disabled=true;
+api('/admin/prompt/restore',{method:'POST',body:{id:id}}).then(function(d){
+if(d&&d.ok){
+var msg='Prompt restaurado';
+if(d.restoredSeq)msg+=': versão v'+d.restoredSeq+(d.restoredAt?' ('+fmtDate(d.restoredAt)+')':'');
+if(d.newVersionSeq)msg+='. Criada a v'+d.newVersionSeq+' — dá para desfazer.';
+$('prompt-history-feedback').textContent=msg;$('prompt-history-feedback').className='feedback success';
+loadPromptEditor(getToken());loadSystem();
+}else{$('prompt-history-feedback').textContent='Erro: '+(d&&d.error||'falha');$('prompt-history-feedback').className='feedback error'}
+}).catch(function(e){$('prompt-history-feedback').textContent='Erro: '+e.message;$('prompt-history-feedback').className='feedback error'})
+.finally(function(){if(btn)btn.disabled=false});
+}// FUNÇÕES
+var functionsList=[];
+var editingFuncIdx=null;
+var funcState={type:'todas',search:''};
+var ESSENTIAL=['checkAvailability','appendMessage','getHistory'];
+function loadFunctions(token){
+$('functions-feedback').textContent='Carregando...';$('functions-feedback').className='feedback';
+api('/admin/functions').then(function(d){
+functionsList=d&&Array.isArray(d.functions)?d.functions:[];
+renderFunctions();
+$('functions-feedback').textContent=functionsList.length+' funções carregadas';$('functions-feedback').className='feedback success';
+}).catch(function(e){$('functions-feedback').textContent='Erro: '+e.message;$('functions-feedback').className='feedback error'});
+}
+function typeClass(t){
+return (t||'Logica').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function typeIconName(t){
+var c=typeClass(t);
+return c==='consulta'?'i-search':(c==='acao'?'i-bolt':'i-shield');
+}
+function renderFunctions(){
+var c=$('functions-list');if(!c)return;
+var q=funcState.search.trim().toLowerCase();
+var visible=[];
+functionsList.forEach(function(f,idx){
+var tc=typeClass(f.type);
+if(funcState.type!=='todas'&&tc!==funcState.type)return;
+if(q&&(String(f.name||'').toLowerCase().indexOf(q)===-1&&String(f.description||'').toLowerCase().indexOf(q)===-1))return;
+visible.push({f:f,idx:idx});
+});
+c.innerHTML='';
+if(!visible.length){c.innerHTML='<div class="empty-mini">Nenhum serviço com esse filtro.</div>';return}
+visible.forEach(function(pair){
+var f=pair.f,idx=pair.idx;
+var el=document.createElement('div');el.className='func-card';el.draggable=true;el.dataset.idx=idx;
+var handle=document.createElement('span');handle.className='drag-handle';handle.title='Arraste para reordenar';handle.innerHTML='<svg class="ico ico-sm"><use href="#i-grid"/></svg>';
+var prio=document.createElement('span');prio.className='func-prio';prio.textContent='#'+(idx+1);
+handle.appendChild(prio);
+el.appendChild(handle);
+var iconSpan=document.createElement('span');iconSpan.className='func-icon '+typeClass(f.type);
+iconSpan.innerHTML='<svg class="ico ico-lg"><use href="#'+typeIconName(f.type)+'"/></svg>';
+el.appendChild(iconSpan);
+var info=document.createElement('div');info.className='func-info';
+var nameDiv=document.createElement('div');nameDiv.className='func-name';nameDiv.textContent=f.name||f.id;info.appendChild(nameDiv);
+var typeSpan=document.createElement('span');typeSpan.className='func-type '+typeClass(f.type);typeSpan.textContent=f.type||'Logica';info.appendChild(typeSpan);
+var descDiv=document.createElement('div');descDiv.className='func-desc';descDiv.textContent=f.description||'';info.appendChild(descDiv);
+el.appendChild(info);
+var toggleLabel=document.createElement('label');toggleLabel.className='func-toggle';
+var toggleInput=document.createElement('input');toggleInput.type='checkbox';
+if(f.enabled!==false)toggleInput.checked=true;
+toggleInput.dataset.idx=idx;
+toggleLabel.appendChild(toggleInput);
+var slider=document.createElement('span');slider.className='slider';toggleLabel.appendChild(slider);
+el.appendChild(toggleLabel);
+var editBtn=document.createElement('button');editBtn.className='func-edit-btn';editBtn.dataset.idx=idx;
+editBtn.innerHTML='<svg class="ico ico-sm"><use href="#i-pen"/></svg> Editar';
+el.appendChild(editBtn);
+c.appendChild(el);
+});
+initDragAndDrop();
+c.querySelectorAll('.func-toggle input').forEach(function(cb){
+cb.addEventListener('change',function(){
+var i=parseInt(this.dataset.idx);
+var f=functionsList[i];
+if(!this.checked&&f&&ESSENTIAL.indexOf(f.name||f.id)!==-1){
+var go=confirm('"'+(f.name||f.id)+'" é essencial para o atendimento. Desativar pode impedir a IA de responder corretamente. Desativar mesmo assim?');
+if(!go){this.checked=true;return}
+}
+functionsList[i].enabled=this.checked;
+});
+});
+c.querySelectorAll('.func-edit-btn').forEach(function(btn){
+btn.addEventListener('click',function(){openFuncModal(parseInt(this.dataset.idx))});
+});
+}
+(function(){
+document.querySelectorAll('[data-func-filter]').forEach(function(b){
+b.addEventListener('click',function(){
+document.querySelectorAll('[data-func-filter]').forEach(function(x){x.classList.remove('active')});
+this.classList.add('active');funcState.type=this.dataset.funcFilter;renderFunctions();
+});
+});
+var s=$('func-search');
+if(s)s.addEventListener('input',function(){funcState.search=this.value;renderFunctions()});
+})();
+function initDragAndDrop(){
+var c=$('functions-list');var dragSrc=null;
+c.querySelectorAll('.func-card').forEach(function(card){
+card.addEventListener('dragstart',function(){dragSrc=this;this.classList.add('dragging')});
+card.addEventListener('dragend',function(){this.classList.remove('dragging');dragSrc=null});
+card.addEventListener('dragover',function(e){e.preventDefault()});
+card.addEventListener('drop',function(e){
+e.preventDefault();if(dragSrc===this)return;
+var fromIdx=parseInt(dragSrc.dataset.idx);var toIdx=parseInt(this.dataset.idx);
+if(isNaN(fromIdx)||isNaN(toIdx))return;
+var moved=functionsList.splice(fromIdx,1)[0];
+functionsList.splice(toIdx,0,moved);
+renderFunctions();
+});
+});
+}
+function openFuncModal(idx){
+editingFuncIdx=idx;
+var f=idx>=0?functionsList[idx]:{name:'',type:'Consulta',icon:'',description:'',enabled:true};
+$('func-modal-title').textContent=idx>=0?'Editar serviço':'Novo serviço';
+$('func-edit-name').value=f.name||'';
+$('func-edit-type').value=f.type||'Consulta';
+$('func-edit-icon').value=f.icon||'';
+$('func-edit-desc').value=f.description||'';
+$('func-modal-overlay').classList.add('active');
+$('func-edit-name').focus();
+}
+function closeFuncModal(){$('func-modal-overlay').classList.remove('active');editingFuncIdx=null}
+$('btn-func-cancel').addEventListener('click',closeFuncModal);
+$('func-modal-overlay').addEventListener('click',function(e){if(e.target===this)closeFuncModal()});
+$('btn-func-save').addEventListener('click',function(){
+var name=$('func-edit-name').value.trim();
+if(!name){alert('Informe o nome do serviço.');return}
+var data={name:name,type:$('func-edit-type').value,icon:$('func-edit-icon').value.trim()||'\u2699',description:$('func-edit-desc').value.trim()};
+if(editingFuncIdx>=0){
+var cur=functionsList[editingFuncIdx];
+functionsList[editingFuncIdx]=Object.assign({},cur,data);
+}else{
+data.id=name.replace(/[^a-zA-Z0-9_]/g,'');
+data.enabled=true;
+functionsList.push(data);
+}
+closeFuncModal();renderFunctions();
+});
+$('btn-add-function').addEventListener('click',function(){openFuncModal(-1)});
+$('btn-save-functions').addEventListener('click',function(){
+this.disabled=true;$('functions-feedback').textContent='Salvando...';$('functions-feedback').className='feedback';
+fetch(API_BASE+'/admin/functions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},body:JSON.stringify({functions:functionsList})})
+.then(function(r){return r.json()}).then(function(d){
+if(d&&d.ok){$('functions-feedback').textContent=functionsList.length+' funções salvas';$('functions-feedback').className='feedback success'}
+else{$('functions-feedback').textContent='Erro: '+(d&&d.error||'desconhecido');$('functions-feedback').className='feedback error'}
+}).catch(function(e){$('functions-feedback').textContent='Erro ao salvar: '+e.message;$('functions-feedback').className='feedback error'})
+.finally(function(){$('btn-save-functions').disabled=false});
+});
+
+// Ctrl K (visual)
+document.addEventListener('keydown',function(e){
+if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){
+e.preventDefault();
+var s=$('cmd-search');if(s)s.focus();
+}
+});
+// AUTO-LOGIN
+var saved=getToken();
+if(saved){$('screen-login').style.display='none';$('screen-panel').classList.add('active');renderGreeting();showScreen('panel')}
+// AUTO-REFRESH
+setInterval(function(){var p=$('screen-panel');if(p&&p.classList.contains('active')){var t=getToken();if(t){api('/admin/status').then(updateStatus).catch(function(){})}}},5000);
+})();
+</script>
+</body>
+</html>

@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const { getHistory, appendMessage } = require('./utils/context');
-const { shouldSilence, triggerHandoff, isHandoffTriggered } = require('./utils/handoff');
+const { getHistory, appendMessage, getState, updateState, persistResult, markQuotePresented, markHandoffConfirmed, isQuoteValidFor, appendMessageWithState, extractGuestsFromText } = require('./utils/context');
+const { shouldSilence, triggerHandoff } = require('./utils/handoff');
 const { getSettings } = require('./utils/settings');
-const { calculateQuote, formatQuote, extractChildrenAges, formatBRL } = require('./utils/pricing');
+const { calculateQuote, formatQuote, extractChildrenAges, formatBRL, formatDateBR } = require('./utils/pricing');
 const { checkAvailability, getRoomTypes } = require('./adapters/hospedinn');
 const { info: logInfo, warn: logWarn, error: logError } = require('./utils/logger');
 
@@ -25,19 +25,34 @@ const HANDOFF_PATTERNS = [
 ];
 
 // Cliente pediu explicitamente uma pessoa: o atendimento humano assume na hora
-const REQUEST_HUMAN_PATTERN = /(?:falar|conversar)\s+com\s+(?:um\s+|uma\s+)?(?:humano|atendente|pessoa|algu[eé]m|respons[aá]vel)|atendimento\s+humano|quero\s+(?:um\s+)?atendente|(?:me\s+)?passa\s+(?:para|pra)\s+(?:um\s+)?(?:humano|atendente)|chama\s+(?:um\s+)?(?:humano|atendente)/i;
+const REQUEST_HUMAN_PATTERN = /(?:falar|conversar)\s+com\s+(?:um\s+|uma\s+)?(?:humano|atendente|pessoa|algu[eé]m|respons[aá]vel)|atendimento\s+humano|quero\s+(?:um\s+)?atendente|(?:me\s+)?passa[r]?\s+(?:para|pra)\s+(?:um[a]?\s+)?(?:humano|atendente|pessoa)|chama[r]?\s+(?:um\s+)?(?:humano|atendente)/i;
 
 // Resposta da IA que encerra o atendimento passando a conversa para o especialista
 const HANDOFF_SENT_PATTERN = /(?:estou|vou)\s+encaminhando|encaminhando\s+(?:agora|sua reserva|seu atendimento|para)|transferindo\s+(?:voc[eê]|sua conversa)|(?:especialista|atendente|equipe)\s+(?:vai|ir[aá])\s+(?:te\s+)?(?:confirmar|entrar em contato)/i;
 
 const AVAILABILITY_PATTERN = /disponib|\btem\s+vaga|\bvagas?\b|quarto\s+livre|datas\s+de\s+entrada|check[-\s]?in/i;
-// Detecta confirmações curtas que devem disparar consulta pendente quando já há dados completos no histórico
-const CONFIRMATION_PATTERN = /^(?:sim|isso|correto|confirmo|pode|claro|ok|ta|tá|exato|certinho|confirmado)$/i;
+// Confirmações curtas válidas para prosseguir em fluxos de coleta/disponibilidade.
+// NÃO inclui "ok", "perfeito", "entendi", "obrigado", "certo" — esses são apenas
+// confirmações de leitura após cotação e não devem disparar handoff nem consulta automática.
+const CONFIRMATION_PATTERN = /^(?:sim|isso|correto|confirmo|pode|claro|ta|tá|exato|certinho|confirmado)$/i;
+
+// Intenção EXPLÍCITA de reserva: só estas frases disparam handoff pós-cotação.
+// Exclui genéricos ("sim", "ok") e hipotéticos/negativos ("não quero reservar ainda").
+const EXPLICIT_RESERVE_PATTERN = /(?:quero|desejo|pretendo)\s+(?:reservar|fechar|confirmar\s+(?:a\s+)?reserva|garantir\s+(?:a\s+)?(?:reserva|hospedagem|vaga|quarto))|(?:pode|vou)\s+(?:fechar|confirmar|reservar|garantir)(?:\s+(?:a\s+)?(?:reserva|hospedagem|para\s+mim|comigo))?|confirmo\s+a\s+reserva|fecho\s+(?:a\s+)?(?:reserva|hospedagem)|quero\s+(?:o\s+)?(?:quarto|su[ií]te)|garanto\s+(?:a\s+)?(?:reserva|hospedagem)/i;
+
+// Negação ou hipótese de reserva: se casar, NÃO é intenção de fechar mesmo que EXPLICIT_RESERVE_PATTERN case.
+const RESERVE_NEGATION_PATTERN = /n[aã]o\s+(?:quero|desejo|posso|pretendo|preciso)\s+(?:reservar|fechar|confirmar|garantir)|(?:ainda\s+)?n[aã]o\s+(?:quero|desejo|posso|pretendo)\s+(?:reservar|fechar|confirmar|garantir)|ser[aá]\s+que\s+(?:posso|d[aá])\s+(?:reservar|fechar)|quero\s+saber\s+(?:como\s+)?(?:reservar|fechar)|gostaria\s+de\s+saber\s+(?:como\s+)?(?:reservar|fechar)|(?:como\s+)?fa[cç]o\s+(?:para\s+)?(?:reservar|fechar)|sem\s+compromisso|s[oó]\s+(?:estou\s+)?(?:vendo|pesquisando|olhando|curiosando)/i;
+
+// Aprovação da cotação: cliente gostou do que viu e quer seguir.
+// Não confirma reserva (isso é EXPLICIT_RESERVE_PATTERN), mas encerra a repetição
+// do orçamento e leva ao resumo de confirmação.
+const QUOTE_APPROVAL_PATTERN = /^(?:gostei|amei|adorei|ficou\s+(?:bom|ótimo|otimo|perfeito)|achei\s+(?:bom|ótimo|otimo|perfeito)|(?:está|esta|tá|ta)\s+(?:bom|ótimo|otimo|perfeito)|perfeito|ótimo|otimo|excelente|maravilha|pode\s+ser|por\s+mim\s+(?:ok|tudo\s+bem)|com\s+certeza|quero\s+(?:sim|esse|essa)|vamos\s+(?:nessa|fechar|em\s+frente)|bora)\b/i;
 
 const AUDIO_PATTERN = /(?:^|\s)(?:audio|áudio|voz)\s*$/i;
 
 // Texto que precede o pin: endereço ou diferenciais da pousada/região
 const LOCATION_CONTEXT_PATTERN = /pra[cç]a bandeira|rua dos tri[aâ]ngulos|endereço|500 metros|praia do forte|polo gastron|bairro da passagem|[aá]guas cristalinas|p[oô]r do sol|canal itajuru|gastron[oô]mico|curiosidade|sabia que|imperd[ií]vel|vale a pena|encantador|charme|vibe|clima acolhedor|para[í]so|lugar especial/i;
+const LOCATION_REQUEST_PATTERN = /(?:manda|envia|me\s+envie|pode\s+mandar|quero)\s+(?:o\s+|a\s+)?(?:pin|localiza[cç][aã]o|endere[cç]o)|(?:onde\s+(?:fica|\s+\w+\s+fica)|me\s+passa\s+o\s+endere[cç]o)/i;
 
 // Catálogo de suítes com links do WhatsApp e capacidade máxima
 // A IA deve recomendar a suíte com MENOR capacidade que ainda comporte o grupo (best fit)
@@ -219,18 +234,47 @@ const MONTH_MAP = {
 
 async function callLLM(messages) {
   const apiKey = process.env.LLM_API_KEY;
-  const baseUrl = process.env.LLM_BASE_URL || 'https://api.openai.com/v1';
-  const model = process.env.LLM_MODEL || 'gpt-4o-mini';
 
   if (!apiKey) {
     logError('[orchestrator] LLM_API_KEY not configured');
     return null;
   }
 
+  // Lê configuração dinâmica do disco (permite alteração hot sem reinício)
+  const { getLlmConfig, getApiStyle } = require('./utils/llmConfig');
+  let config;
   try {
+    config = getLlmConfig();
+  } catch (err) {
+    logError(`[orchestrator] Failed to read LLM config: ${err.message}`);
+    config = { provider: 'openai', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', temperature: 0.7, maxTokens: 500 };
+  }
+
+  const { baseUrl, model, temperature, maxTokens } = config;
+
+  try {
+    if (getApiStyle(config.provider) === 'anthropic') {
+      // A API da Anthropic tem outro formato: /messages, x-api-key e system separado
+      const systemParts = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
+      const chatMessages = messages
+        .filter(m => m.role !== 'system')
+        .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }));
+      const body = { model, messages: chatMessages, max_tokens: maxTokens, temperature };
+      if (systemParts) body.system = systemParts;
+      const response = await axios.post(`${baseUrl}/messages`, body, {
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000,
+      });
+      return response.data.content?.[0]?.text || null;
+    }
+
     const response = await axios.post(
       `${baseUrl}/chat/completions`,
-      { model, messages, max_tokens: 500, temperature: 0.7 },
+      { model, messages, max_tokens: maxTokens, temperature },
       {
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         timeout: 30000,
@@ -239,7 +283,7 @@ async function callLLM(messages) {
     return response.data.choices?.[0]?.message?.content || null;
   } catch (error) {
     const detail = error.response ? `HTTP ${error.response.status}` : error.message;
-    logError(`[orchestrator] LLM call failed: ${detail}`);
+    logError(`[orchestrator] LLM call failed (${model}@${baseUrl}): ${detail}`);
     return null;
   }
 }
@@ -270,8 +314,28 @@ function extractDates(text) {
     if (month) return { checkIn: `${year}-${month}-${dayIn}`, checkOut: `${year}-${month}-${dayOut}` };
   }
 
+  // Pattern 1b: datas rotuladas por palavra — "entrada 05 de janeiro saída 10 de janeiro",
+  // "check-in 05/01 check-out 10/01". O cliente escreve assim no atendimento real.
+  const labeledMonth = normalized.match(/(?:entrada|check[-\s]?in)\s*:?\s*(?:dia\s+)?(\d{1,2})\s*(?:de|\/)\s*([a-z]+|\d{1,2})(?:\s*(?:de|\/)\s*(\d{4}))?[^a-z0-9]*(?:e\s+)?(?:saida|check[-\s]?out)\s*:?\s*(?:dia\s+)?(\d{1,2})\s*(?:de|\/)\s*([a-z]+|\d{1,2})(?:\s*(?:de|\/)\s*(\d{4}))?/);
+  if (labeledMonth) {
+    const monthIn = MONTH_MAP[labeledMonth[2]] || (/^\d{1,2}$/.test(labeledMonth[2]) ? labeledMonth[2].padStart(2, '0') : null);
+    const monthOut = MONTH_MAP[labeledMonth[5]] || (/^\d{1,2}$/.test(labeledMonth[5]) ? labeledMonth[5].padStart(2, '0') : null);
+    if (monthIn && monthOut) {
+      const yearIn = labeledMonth[3] || String(currentYear);
+      let yearOut = labeledMonth[6] || yearIn;
+      if (parseInt(monthOut, 10) < parseInt(monthIn, 10) && !labeledMonth[6]) {
+        yearOut = String(parseInt(yearIn, 10) + 1);
+      }
+      return {
+        checkIn: `${yearIn}-${monthIn}-${labeledMonth[1].padStart(2, '0')}`,
+        checkOut: `${yearOut}-${monthOut}-${labeledMonth[4].padStart(2, '0')}`,
+      };
+    }
+  }
+
   // Pattern 2: "DD/MM[/YYYY] a/ate/- DD/MM[/YYYY]"
-  const slashRange = normalized.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\s*(?:a|ate|-|–)\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/);
+  // "ao" e o "dia" opcional cobrem "dia 05/01 ao dia 10/01" sem quebrar "05/01 a 10/01".
+  const slashRange = normalized.match(/(?:dia\s+)?(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\s*(?:ate|ao|a|-|–)\s*(?:o\s+)?(?:dia\s+)?(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/);
   if (slashRange) {
     const dayIn = slashRange[1].padStart(2, '0');
     const monthIn = slashRange[2].padStart(2, '0');
@@ -411,7 +475,7 @@ function validateDates(checkIn, checkOut) {
 }
 
 // Cliente pedindo valor: só responde com cotação real, nunca com estimativa.
-const QUOTE_INTENT_PATTERN = /quanto\s+(?:custa|ficaria|fica|sai|sairia|seria|é|e\b)|qual\s+(?:o\s+|seria\s+o\s+)?(?:valor|pre[cç]o)|pre[cç]o|di[aá]ria|or[cç]amento|valores|quanto\s+por\s+noite/i;
+const QUOTE_INTENT_PATTERN = /quanto\s+(?:custa|ficaria|fica|sai|sairia|seria|é|e\b|vou\s+pagar|vou\s+gastar)|(?:vou\s+pagar|vou\s+gastar)\s+quanto|qual\s+(?:o\s+|seria\s+o\s+)?(?:valor|pre[cç]o|total)|(?:e|sobre)\s+(?:o\s+)?(?:valor|pre[cç]o)|pre[cç]o|di[aá]ria|or[cç]amento|valores|total\s+(?:de|da|do)\b|quanto\s+por\s+noite/i;
 
 function normalizeForMatch(text) {
   return String(text || '')
@@ -431,6 +495,13 @@ const ANY_ROOM_PATTERN = /qualquer\s+(?:uma|su[ií]te|op[cç][aã]o)|tanto\s+faz
 function selectedRoomFromText(text) {
   const normalized = normalizeForMatch(text);
   return ROOM_CATALOG.find((room) => normalized.includes(normalizeForMatch(room.name))) || null;
+}
+
+/** Suíte do catálogo pelo nome exato persistido no estado. */
+function roomByName(name) {
+  if (!name) return null;
+  const normalized = normalizeForMatch(name);
+  return ROOM_CATALOG.find((room) => normalizeForMatch(room.name) === normalized) || null;
 }
 
 /** Última contagem de adultos/crianças dita pelo CLIENTE (ignora o catálogo enviado pela IA). */
@@ -456,8 +527,21 @@ function guestsFromHistory(history) {
  * Valor por hóspede adicional e total são calculados em utils/pricing — aqui só
  * se monta o texto que o cliente recebe.
  */
-function buildQuoteReply({ history, checkIn, checkOut, room }) {
-  const { adults, children, ages } = guestsFromHistory(history);
+function buildQuoteReply({ history, checkIn, checkOut, room, state }) {
+  // Usa estado estruturado como fonte primária; fallback para regex quando estado não tem dados de hóspedes
+  const s = state || {};
+  let adults = s.adults != null ? s.adults : null;
+  let children = s.children != null ? s.children : null;
+  let ages = s.childrenAges || [];
+  // Fallback: se estado não tem adultos nem crianças, tenta extrair do histórico textual
+  if (adults == null && children == null && history) {
+    const fallback = guestsFromHistory(history);
+    adults = fallback.adults;
+    children = fallback.children;
+    ages = fallback.ages || [];
+  }
+  adults = adults || 0;
+  children = children || 0;
   // Sem saber o grupo não há cotação confiável: quem informa é o especialista.
   if (adults === 0 && children === 0) return null;
   // Criança sem idade não pode sair de graça: sem a idade de todas, não cotamos.
@@ -479,8 +563,9 @@ function buildQuoteReply({ history, checkIn, checkOut, room }) {
     adults,
     childrenAges,
   });
-  const amenities = '\n\n🛏️ *Todos os quartos incluem:*\n❄️ Ar-condicionado\n📺 Televisão\n🥂 Frigobar\n\n🏊 A pousada também oferece piscina e área de churrasqueira para aproveitar ao máximo sua estadia!\n\n📩 Garanta já sua reserva!!';
+  const amenities = '\n\n🛏️ *Todos os quartos incluem:*\n❄️ Ar-condicionado\n📺 Televisão\n🥂 Frigobar\n\n🏊 A pousada também oferece piscina e área de churrasqueira para aproveitar ao máximo sua estadia!';
   return {
+    ok: true,
     content: `${body}${amenities}\n\nO que você achou da proposta?`,
     total: quote.total,
     roomsTotal: quote.roomsTotal,
@@ -490,40 +575,55 @@ function buildQuoteReply({ history, checkIn, checkOut, room }) {
 }
 
 /**
- * Resumo de confirmação antes do handoff. Reaproveitado tanto na confirmação
- * curta ("sim") quanto no caminho de datas, para não repetir a lista de suítes
- * depois que o cliente já viu a cotação.
- * Devolve null quando ainda faltam datas.
+ * Valor formatado do orçamento já persistido (fonte: pricing.js, nunca a LLM).
+ * Devolve null quando não há orçamento válido para os dados atuais.
+ */
+function persistedQuoteFor(phoneNumber, overrides = {}) {
+  const entry = isQuoteValidFor(phoneNumber, overrides);
+  if (!entry || !entry.result || entry.result.total == null) return null;
+  return entry;
+}
+
+/**
+ * Resumo de confirmação antes do handoff. Usa a suíte persistida no estado e o
+ * orçamento que o cliente já recebeu — nunca escolhe suíte por conta própria nem
+ * recota com dados diferentes dos que geraram a proposta apresentada.
+ * Devolve null quando não há orçamento válido ou faltam datas.
  */
 function buildHandoffSummary({ phoneNumber, pushName, history, checkIn, checkOut }) {
   const summaryText = history.map((m) => m.content).join(' ');
   const nameFromRegex = summaryText.match(/nome:\s*(.+)/i);
   const resolvedName = (pushName && pushName.trim()) || (nameFromRegex ? nameFromRegex[1].trim() : '');
-  const nameLine = resolvedName ? `Nome: ${resolvedName}\n` : '';
-  const phoneLine = `Telefone: ${phoneNumber}\n`;
-  const { adults: sumAdults, children: sumChildren } = guestsFromHistory(history);
-  const ages = extractChildrenAges(history.filter((m) => m.role === 'user').map((m) => m.content).join(' '));
+  const nameLine = resolvedName ? `👤 Nome: ${resolvedName}\n` : '';
+  const phoneLine = `📱 Telefone: ${phoneNumber}\n`;
+  // Usa estado estruturado como fonte primária para handoff
+  const handoffState = getState(phoneNumber);
+  const sumAdults = handoffState && handoffState.adults != null ? handoffState.adults : 0;
+  const sumChildren = handoffState && handoffState.children != null ? handoffState.children : 0;
+  const ages = (handoffState && handoffState.childrenAges) || [];
   const agesLabel = ages.length > 0 ? ` (${ages.join(' e ')} anos)` : '';
   const guestsLine = (sumAdults > 0 || sumChildren > 0)
-    ? `Pessoas: ${sumAdults} adultos${sumChildren > 0 ? `, ${sumChildren} crianças${agesLabel}` : ''}\n`
+    ? `👥 Pessoas: ${sumAdults} adultos${sumChildren > 0 ? `, ${sumChildren} crianças${agesLabel}` : ''}\n`
     : '';
-  const datesLine = `Check-in: ${checkIn}\nCheck-out: ${checkOut}\n`;
+  const datesLine = `📅 Check-in: ${formatDateBR(checkIn)}\n📅 Check-out: ${formatDateBR(checkOut)}\n`;
 
-  let summaryRoom = selectedRoomFromText(summaryText);
-  if (!summaryRoom) {
-    const fits = recommendRooms((sumAdults + sumChildren) || 2, null);
-    summaryRoom = fits.length > 0 ? fits[0] : null;
+  // O valor e a suíte vêm do orçamento que o cliente recebeu, não de um recálculo.
+  const presentedQuote = persistedQuoteFor(phoneNumber, { checkIn, checkOut });
+  if (!presentedQuote) {
+    logWarn('[orchestrator] Handoff summary blocked: no presented quote for current data', { phoneNumber, checkIn, checkOut, room: handoffState ? handoffState.selectedRoom : null });
+    return null;
   }
-  const summaryRoomLine = summaryRoom ? `Suíte: ${summaryRoom.name}\n` : '';
+  // A suíte do resumo é a que foi cotada: com recomendação automática o estado não
+  // tem selectedRoom, e usar null aqui mostraria um resumo sem suíte.
+  const quotedRoomName = (presentedQuote.params && presentedQuote.params.room) || (handoffState && handoffState.selectedRoom) || null;
+  const summaryRoom = quotedRoomName ? roomByName(quotedRoomName) : null;
+  const summaryRoomLine = quotedRoomName ? `🏡 Suíte: ${summaryRoom ? summaryRoom.name : quotedRoomName}\n` : '';
+  const totalLine = `💰 Valor total: ${formatBRL(presentedQuote.result.total)} (${presentedQuote.result.nights} noites)\n`;
 
-  let totalLine = '';
-  const quote = buildQuoteReply({ history, checkIn, checkOut, room: summaryRoom });
-  if (quote) totalLine = `Valor total: ${formatBRL(quote.total)} (${quote.nights} noites)\n`;
-
-  return `Perfeito! Vamos confirmar seus dados antes de encaminhar para nosso especialista:\n${nameLine}${phoneLine}${guestsLine}${datesLine}${summaryRoomLine}${totalLine}Está tudo correto? Posso encaminhar para nosso especialista confirmar sua reserva?`;
+  return `✨ Perfeito! Vamos confirmar seus dados antes de encaminhar para nosso especialista:\n${nameLine}${phoneLine}${guestsLine}${datesLine}${summaryRoomLine}${totalLine}✅ Está tudo correto? Posso encaminhar para nosso especialista confirmar sua reserva? 🎉`;
 }
 
-function formatAvailabilityReply(result, checkIn, checkOut, totalGuests) {
+function formatAvailabilityReply(result, checkIn, checkOut, totalGuests, selectedRoom = null) {
   if (result.error) {
     return null;
   }
@@ -532,7 +632,12 @@ function formatAvailabilityReply(result, checkIn, checkOut, totalGuests) {
   if (result.available === true) {
     // Recomenda suítes do catálogo baseadas no perfil (best fit)
     const availableRoomNames = result.availableRooms && Array.isArray(result.availableRooms) ? result.availableRooms : null;
-    const recommended = recommendRooms(totalGuests, availableRoomNames);
+    // Se o cliente já escolheu uma suíte, filtra apenas ela (se disponível) em vez de listar todas
+    // C2: selectedRoom pode chegar como objeto do catálogo (novo) ou string (chamadas legadas).
+    const selectedRoomName = selectedRoom && typeof selectedRoom === 'object' ? selectedRoom.name : selectedRoom;
+    const recommended = selectedRoomName && availableRoomNames && availableRoomNames.some(n => n.toLowerCase() === selectedRoomName.toLowerCase())
+      ? recommendRooms(totalGuests, [selectedRoomName])
+      : recommendRooms(totalGuests, availableRoomNames);
     // Quantidade de quartos exibida deve refletir APENAS as suítes compatíveis com o grupo,
     // não o total bruto da API (que inclui suítes pequenas demais para o grupo)
     const compatibleCount = recommended.length;
@@ -568,14 +673,15 @@ const POUSADA_ADDRESS_LINE = 'Praça Bandeira, 10 - Passagem, Cabo Frio - RJ';
 // Todo retorno de disponibilidade cita a pousada/localização e leva o pin uma única vez por conversa.
 function withAvailabilityLocation(history, reply, forcePin = false) {
   const alreadySent = history.some(m => m.role === 'assistant' && m.content === '[LOCATION_SENT]');
-  if (alreadySent) return { content: reply, sendLocationAfterReply: false };
-  // Pin só dispara se forçado (cotação/pergunta explícita) ou se a resposta já trouxer contexto de localização.
-  const shouldSendPin = forcePin || LOCATION_CONTEXT_PATTERN.test(reply);
-  if (!shouldSendPin) return { content: reply, sendLocationAfterReply: false };
-  // Endereço entra no PRIMEIRO bloco: o pin sai logo depois dele.
+  // O pin só sai para quem não conhece a região ou pede explicitamente: avaliado no texto
+  // ORIGINAL, antes do endereço ser acrescentado (senão todo fluxo viraria pedido de pin).
+  const shouldSendPin = !alreadySent && (forcePin || LOCATION_CONTEXT_PATTERN.test(reply));
+  // O endereço é obrigatório em todo fluxo de disponibilidade/preço/reserva, inclusive para
+  // quem já conhece a região (prompt v12) — nesse caso sem pin.
+  if (reply.includes(POUSADA_ADDRESS_LINE)) return { content: reply, sendLocationAfterReply: shouldSendPin };
   const blocks = reply.split(/\n\n/);
   blocks[0] = `${blocks[0]}\n\n📍 ${POUSADA_ADDRESS_LINE}`;
-  return { content: blocks.join('\n\n'), sendLocationAfterReply: true };
+  return { content: blocks.join('\n\n'), sendLocationAfterReply: shouldSendPin };
 }
 
 // Falha real do sistema: nada de inventar suíte/valor — o humano assume.
@@ -612,7 +718,8 @@ async function processMessage(phoneNumber, incomingText, pushName) {
   // Registra a mensagem do usuário ANTES de qualquer verificação de estado para garantir que o histórico esteja atualizado
   appendMessage(phoneNumber, 'user', cleanText);
 
-  // PEDIDO EXPLÍCITO DE ATENDIMENTO HUMANO: responde e passa o contato para o humano.
+  // PEDIDO EXPLÍCITO DE ATENDIMENTO HUMANO: prioridade ABSOLUTA sobre qualquer fluxo.
+  // Responde e passa o contato para o humano imediatamente, sem coletar dados antes.
   // A partir daqui shouldSilence() devolve true e a IA não responde mais até ser reativada no painel.
   if (REQUEST_HUMAN_PATTERN.test(cleanText)) {
     logInfo('[orchestrator] Client requested a human agent', { phoneNumber });
@@ -621,6 +728,36 @@ async function processMessage(phoneNumber, incomingText, pushName) {
     await humanDelay();
     triggerHandoff(phoneNumber, 'cliente_pediu_humano');
     return { type: 'reply', content: reply };
+  }
+
+  // PROTEÇÃO CONTRA HANDOFF DUPLICADO: se o contato continua em atendimento humano,
+  // não dispara novamente. Usa shouldSilence (e não isHandoffTriggered) porque o
+  // "Devolver para a IA" do painel mantém o registro de handoff no histórico: ali
+  // o override está ativo e a IA precisa voltar a responder.
+  if (shouldSilence(phoneNumber)) {
+    logInfo('[orchestrator] Handoff already triggered for this contact, silencing', { phoneNumber });
+    return { type: 'silence' };
+  }
+
+  // FASE 0 — Extração estruturada da mensagem atual + atualização do estado
+  // Executa APÓS as guardas de silêncio/handoff para evitar persistir dados em conversas encerradas.
+  // Merge parcial: só atualiza campos presentes na mensagem; campos omitidos preservam valores anteriores.
+  const guestPartial = extractGuestsFromText(cleanText);
+  const datePartial = extractDates(cleanText);
+  const roomPartial = selectedRoomFromText(cleanText);
+  const stateUpdate = {};
+  if (guestPartial.adults !== undefined) stateUpdate.adults = guestPartial.adults;
+  if (guestPartial.children !== undefined) stateUpdate.children = guestPartial.children;
+  if (guestPartial.childrenAges !== undefined) stateUpdate.childrenAges = guestPartial.childrenAges;
+  if (datePartial && datePartial.checkIn) stateUpdate.checkIn = datePartial.checkIn;
+  if (datePartial && datePartial.checkOut) stateUpdate.checkOut = datePartial.checkOut;
+  if (roomPartial) stateUpdate.selectedRoom = roomPartial.name;
+  if (Object.keys(stateUpdate).length > 0) {
+    try {
+      updateState(phoneNumber, stateUpdate);
+    } catch (e) {
+      logWarn('[orchestrator] updateState failed in FASE 0', { phoneNumber, error: e.message });
+    }
   }
 
   // Contexto da conversa para respostas opcionais sobre localização/região.
@@ -651,6 +788,8 @@ async function processMessage(phoneNumber, incomingText, pushName) {
   const saidOnlyAdults = /apenas\s+adultos|somente\s+adultos|s[oó]\s+(?:tem\s+)?adultos?|todos\s+adultos|somos\s+(?:apenas\s+)?adultos|n[aã]o\s+tem\s+crian[cç]as?|sem\s+crian[cç]as?|n[aã]o\s+tenho\s+crian[cç]as?|0\s+crian[cç]as?|zero\s+crian[cç]as?|apenas\s+eu\s+e\s+(?:meu|minha)\s+(?:marido|esposa|companheiro|namorado)|eu\s+e\s+(?:meu|minha)\s+(?:marido|esposa|companheiro|namorado)/.test(historyTextLower);
 
   // PRIORIDADE: Se houver datas explícitas na mensagem OU no histórico, consulta disponibilidade ANTES de handoff
+  // Recupera estado estruturado; se não existir, hidrata do histórico automaticamente
+  const conversationState = getState(phoneNumber);
   let hasDates = extractDates(cleanText);
   const isConfirmation = CONFIRMATION_PATTERN.test(cleanText.trim());
   // Resolve datas curtas com o mês já citado nesta conversa antes de pedir qualquer esclarecimento.
@@ -667,11 +806,22 @@ async function processMessage(phoneNumber, incomingText, pushName) {
       return { type: 'reply', content: reply };
     }
   }
-  // Se a mensagem atual é apenas o nome de um mês (resposta a "qual mês?"), tenta recuperar datas do histórico
-  const isMonthOnly = /^(?:de\s+|em\s+)?(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)$/i.test(cleanText.trim());
+  // Se a mensagem atual é apenas o nome de um mês (resposta a "qual mês?" ou interesse espontâneo), trata como informação parcial
+  const monthOnlyMatch = cleanText.trim().match(/^(?:de\s+|em\s+)?(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)$/i);
+  const isMonthOnly = !!monthOnlyMatch;
   // Se a mensagem atual é resposta de mês OU confirmação curta após pergunta de mês, força recuperação de datas
   // Isso cobre o caso onde o usuário responde "dezembro" após "qual mês?" e o sistema precisa consultar
   const isMonthResponseOrConfirmation = isMonthOnly || (isConfirmation && historyForRegion.some(m => m.role === 'assistant' && /qual m[eê]s|de qual m[eê]s/i.test(m.content)));
+
+  // MÊS ISOLADO: cliente informou apenas o mês sem dias. Pergunta quais dias deseja,
+  // preservando o mês no contexto para completar depois. Só ativa em contexto de disponibilidade.
+  if (isMonthOnly && !hasDates && detectAvailabilityRequest(historyForRegion.map(m => m.content).join(' ') + ' ' + cleanText)) {
+    const monthName = monthOnlyMatch[1].toLowerCase();
+    logInfo('[orchestrator] Month-only message detected, asking for days', { phoneNumber, month: monthName });
+    const reply = `Perfeito, ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}! Quais dias você está pensando? Pode me dizer o período (ex: "5 a 10") que eu verifico a disponibilidade.`;
+    appendMessage(phoneNumber, 'assistant', reply);
+    return { type: 'reply', content: reply };
+  }
   // Resposta à pergunta "quantas pessoas vão se hospedar?": retoma a consulta de disponibilidade
   // com as datas já informadas, em vez de cair na LLM e perder o que foi coletado.
   const askedGuestCount = historyForRegion.some(m => m.role === 'assistant' && /quantas pessoas v[aã]o se hospedar/i.test(m.content));
@@ -680,22 +830,70 @@ async function processMessage(phoneNumber, incomingText, pushName) {
   // "sim"/"não" isolado costuma estar respondendo à pergunta sobre a região, não pedindo
   // disponibilidade. Sem esta guarda a conversa desviava para "me diz as datas".
   const lastAssistantText = [...historyForRegion].reverse().find(m => m.role === 'assistant' && m.content !== '[LOCATION_SENT]');
-  const answeredRegionQuestion = isConfirmation && lastAssistantText
-    && /j[aá]\s+conhece|conhece\s+(?:a\s+)?(?:nossa\s+)?regi[aã]o|j[aá]\s+esteve|conhece\s+(?:a\s+)?pousada/i.test(lastAssistantText.content);
-  if (offeredLocationAndAccepted && !locationAlreadySent) {
+  // P2: Resposta à pergunta de região inclui confirmações E negações contextuais
+  // "ainda não", "não conheço", "primeira vez" são respostas válidas quando o assistente perguntou sobre a região
+  const regionQuestionPattern = /j[aá]\s+conhece|conhece\s+(?:a\s+)?(?:nossa\s+)?regi[aã]o|j[aá]\s+esteve|conhece\s+(?:a\s+)?pousada/i;
+  const negativeRegionAnswer = /^(?:ainda\s+n[aã]o|n[aã]o\s+conhe[cç]o|nunca\s+(?:estive|fui)|primeira\s+vez|desconhe[cç]o)/i.test(cleanText);
+  const answeredRegionQuestion = (isConfirmation || negativeRegionAnswer) && lastAssistantText
+    && regionQuestionPattern.test(lastAssistantText.content);
+if (offeredLocationAndAccepted && !locationAlreadySent) {
     const reply = 'Nosso endereço é Praça Bandeira, 10 - Passagem, Cabo Frio - RJ, 28906-320.';
     appendMessage(phoneNumber, 'assistant', reply);
     return { type: 'reply', content: reply, sendLocationAfterReply: true };
   }
+
+  const state = getState(phoneNumber);
+  // GATE DETERMINÍSTICO DA REGIÃO (Etapa 2C.6): se o cliente pediu disponibilidade/valor
+  // e ainda não respondeu à pergunta sobre a região, BLOQUEIA o avanço e faz a pergunta.
+  // Respostas à pergunta de região são tratadas ANTES deste gate (answeredRegionQuestion).
+  const isAvailabilityOrQuoteRequest = detectAvailabilityRequest(cleanText) || detectQuoteRequest(cleanText);
+  // Criança citada sem idade: o fluxo precisa perguntar a idade antes de cotar. O gate da
+  // região não pode engolir essa pergunta de coleta — ele volta a valer quando o valor for gerado.
+  const childAgesMissingForGate = (state.children || 0) > ((state.childrenAges || []).length);
+  // Disponibilidade ou cotação já entregues: perguntar a região agora inverteria a ordem
+  // (a pergunta sairia depois do orçamento e engoliria a resposta do cliente à cotação).
+  const alreadyAdvancedPastRegionGate = !!state.lastAvailability || !!state.lastQuote || !!state.quotePresented;
+  if (isAvailabilityOrQuoteRequest && !state.regionAsked && !answeredRegionQuestion && !childAgesMissingForGate && !alreadyAdvancedPastRegionGate) {
+    logInfo('[orchestrator] Region gate: asking before availability', { phoneNumber });
+    updateState(phoneNumber, { regionAsked: true });
+    const reply = 'Antes de verificar a disponibilidade, me diz uma coisa: você já conhece nossa região aqui em Cabo Frio?';
+    appendMessage(phoneNumber, 'assistant', reply);
+    return { type: 'reply', content: reply };
+  }
+
+  // RESPOSTA À PERGUNTA DE REGIÃO: marca regionKnown e segue para coleta/disponibilidade
+  if (answeredRegionQuestion && !state.regionKnown) {
+    const knowsRegion = !/n[aã]o|desconhe[cç]o|nunca\s+fui|primeira\s+vez/i.test(cleanText);
+    logInfo('[orchestrator] Region answer received', { phoneNumber, knowsRegion });
+    updateState(phoneNumber, { regionKnown: true });
+    if (!knowsRegion) {
+      const ctxMsg = 'Que bom que vou te apresentar! Estamos na Praia do Forte, a praia mais famosa de Cabo Frio, ao lado do polo gastronômico e a 500m da areia. Dá para fazer tudo andando! 🏖️';
+      const dateMsg = 'Agora me conta: para quais datas você está pensando?';
+      // Ordem obrigatória: contextualização → localização (endereço+pin) → pergunta de datas
+      const locatedCtx = withAvailabilityLocation(historyForRegion, ctxMsg, true);
+      appendMessage(phoneNumber, 'assistant', locatedCtx.content);
+      appendMessage(phoneNumber, 'assistant', dateMsg);
+      return { type: 'multi_reply', contents: [locatedCtx.content, dateMsg], sendLocationAfterReply: locatedCtx.sendLocationAfterReply };
+    }
+    // Se conhece a região, cai no fluxo normal abaixo (recuperação de datas/disponibilidade)
+  }
+
   // Se a mensagem atual não tem datas mas é confirmação, pedido de disponibilidade OU resposta de mês,
   // busca datas no histórico completo para evitar pedir novamente ao cliente
-  if (!hasDates && !answeredRegionQuestion && (isConfirmation || isMonthResponseOrConfirmation || (guestAnswerAfterQuestion && extractDates(historyForRegion.map(m => m.content).join(' '))))) {
-    // Só recupera datas do histórico se NÃO for uma pergunta genérica de disponibilidade
-    // "tem vaga?", "vocês tem vaga?" sem datas na mensagem atual NÃO deve usar datas de sessões anteriores
-    const isGenericAvailabilityQuery = /(?:voc[eê]s?\s+)?(?:tem|têm|h[aá])\s+(?:vaga|quarto|disponib)/i.test(cleanText) && !extractDates(cleanText);
-    if (!isGenericAvailabilityQuery) {
-      const historyText = historyForRegion.map(m => m.content).join(' ');
-      hasDates = extractDates(historyText);
+  // Usa estado estruturado como fonte primária para datas do histórico;
+    // fallback regex só para conversas antigas sem estado persistido
+    if (!hasDates && !answeredRegionQuestion && (isConfirmation || isMonthResponseOrConfirmation || (guestAnswerAfterQuestion && (conversationState.checkIn || extractDates(historyForRegion.map(m => m.content).join(' ')))))) {
+      // Só recupera datas do histórico se NÃO for uma pergunta genérica de disponibilidade
+      // "tem vaga?", "vocês tem vaga?" sem datas na mensagem atual NÃO deve usar datas de sessões anteriores
+      const isGenericAvailabilityQuery = /(?:voc[eê]s?\s+)?(?:tem|têm|h[aá])\s+(?:vaga|quarto|disponib)/i.test(cleanText) && !extractDates(cleanText);
+      if (!isGenericAvailabilityQuery) {
+        // Fonte primária: estado estruturado; fallback: regex no histórico textual
+        const historyText = historyForRegion.map(m => m.content).join(' ');
+        if (conversationState.checkIn && conversationState.checkOut) {
+          hasDates = { checkIn: conversationState.checkIn, checkOut: conversationState.checkOut };
+        } else {
+          hasDates = extractDates(historyText);
+        }
       // Fallback: se extractDates não encontrou datas completas no histórico mas há padrão "DD a DD" ou "dia DD ate DD"
       // sem mês explícito, tenta recuperar o mês mencionado anteriormente no histórico
       if (!hasDates) {
@@ -721,14 +919,28 @@ async function processMessage(phoneNumber, incomingText, pushName) {
   // PREÇO: só cota com disponibilidade confirmada e grupo/datas conhecidos.
   // O valor vem de calculateQuote (igual para qualquer leitura da tabela), nunca da LLM.
   const quoteIntent = detectQuoteRequest(cleanText);
-  const selectedRoom = selectedRoomFromText(cleanText);
+  // C2: selectedRoomFromText devolve OBJETO do catálogo; state.selectedRoom é STRING (nome).
+  // Misturar os dois fazia room.name/.capacity virarem undefined (cotação sem suíte).
+  // "roomMentionedInText" é o sinal de intenção: só reentra na cotação se a mensagem
+  // ATUAL fala de suíte. state.selectedRoom serve para cotar, não para decidir reentrar —
+  // senão qualquer mensagem depois da disponibilidade recotava e repetia o orçamento.
+  const roomMentionedInText = selectedRoomFromText(cleanText);
+  const selectedRoom = roomMentionedInText || roomByName(state.selectedRoom) || null;
   const anyRoomAccepted = ANY_ROOM_PATTERN.test(cleanText);
-  const availabilityShown = historyForRegion.some(m => m.role === 'assistant' && /quartos? dispon[ií]vel|op[cç][oõ]es de su[ií]tes|ótima not[ií]cia/i.test(m.content));
+  // availabilityShown agora armazena os parâmetros da última consulta (não mais booleano).
+  // Permite nova consulta quando datas ou hóspedes mudam; bloqueia apenas consultas idênticas.
+  const lastAvailabilityParams = state.lastAvailability ? state.lastAvailability.params : null;
+  const availabilityShown = !!lastAvailabilityParams;
 
-  if (quoteIntent || (availabilityShown && (selectedRoom || anyRoomAccepted))) {
-    const historyText = historyForRegion.map(m => m.content).join(' ');
-    let quoteDates = extractDates(cleanText) || extractDates(historyText);
-    const quoteGuests = guestsFromHistory(historyForRegion);
+  if (quoteIntent || (availabilityShown && (roomMentionedInText || anyRoomAccepted))) {
+    // Usa estado estruturado como fonte primária; mensagem atual já foi integrada na FASE 0
+    const freshState = getState(phoneNumber);
+    let quoteDates = extractDates(cleanText) || (freshState.checkIn && freshState.checkOut ? { checkIn: freshState.checkIn, checkOut: freshState.checkOut } : null);
+    const quoteGuests = {
+      adults: freshState.adults != null ? freshState.adults : 0,
+      children: freshState.children != null ? freshState.children : 0,
+      ages: freshState.childrenAges || [],
+    };
     logInfo('[orchestrator] Quote intent detected', { phoneNumber, hasDates: !!quoteDates, adults: quoteGuests.adults, children: quoteGuests.children, room: selectedRoom && selectedRoom.name });
 
     const askDates = () => {
@@ -758,11 +970,24 @@ async function processMessage(phoneNumber, incomingText, pushName) {
       roomForQuote = bestFit.length > 0 ? bestFit[0] : null;
     }
 
-    if (!availabilityShown) {
+    // Só consulta se os parâmetros forem diferentes da última consulta (ou se nunca consultou).
+    const currentParams = { checkIn: quoteDates.checkIn, checkOut: quoteDates.checkOut, guests: totalGuestsForQuote, room: selectedRoom ? selectedRoom.name : null, ages: (quoteGuests.ages || []).join(',') };
+    const paramsChanged = !lastAvailabilityParams
+      || lastAvailabilityParams.checkIn !== currentParams.checkIn
+      || lastAvailabilityParams.checkOut !== currentParams.checkOut
+      || lastAvailabilityParams.guests !== currentParams.guests
+      || lastAvailabilityParams.room !== currentParams.room
+      || lastAvailabilityParams.ages !== currentParams.ages;
+    if (paramsChanged) {
       const result = await checkAvailability(quoteDates.checkIn, quoteDates.checkOut, totalGuestsForQuote);
       logInfo('[orchestrator] Availability checked for quote', { phoneNumber, available: result && result.available });
+      // Só registra o marcador APÓS consulta bem-sucedida; falha permite nova tentativa com mesmos parâmetros.
+      if (result && result.available === true) {
+        appendMessage(phoneNumber, 'assistant', `[AVAILABILITY_CHECK:${JSON.stringify(currentParams)}]`);
+        persistResult(phoneNumber, 'availability', currentParams, { available: true, roomCount: result.availableRooms ? result.availableRooms.length : null });
+      }
       if (!result || result.available !== true) {
-        const reply = formatAvailabilityReply(result || {}, quoteDates.checkIn, quoteDates.checkOut, totalGuestsForQuote);
+        const reply = formatAvailabilityReply(result || {}, quoteDates.checkIn, quoteDates.checkOut, totalGuestsForQuote, selectedRoom);
         appendMessage(phoneNumber, 'assistant', reply);
         return { type: 'reply', content: reply };
       }
@@ -778,14 +1003,17 @@ async function processMessage(phoneNumber, incomingText, pushName) {
       checkIn: quoteDates.checkIn,
       checkOut: quoteDates.checkOut,
       room: roomForQuote,
+      state: freshState,
     });
 
-if (quote) {
-      const located = withAvailabilityLocation(historyForRegion, quote.content, true);
+	if (quote) {
+      const located = withAvailabilityLocation(historyForRegion, quote.content, false);
       appendMessage(phoneNumber, 'assistant', located.content);
+      persistResult(phoneNumber, 'quote', { checkIn: quoteDates.checkIn, checkOut: quoteDates.checkOut, adults: quoteGuests.adults, childrenAges: quoteGuests.ages, room: roomForQuote ? roomForQuote.name : null }, { total: quote.total, nights: quote.nights });
       await humanDelay();
-      return { type: 'reply', content: located.content, sendLocationAfterReply: located.sendLocationAfterReply };
-    }
+      // quotePresented só é marcado pelo server depois que o WhatsApp confirma a entrega.
+      return { type: 'reply', content: located.content, sendLocationAfterReply: located.sendLocationAfterReply, quoteGenerated: true };
+	}
 
     // Criança sem idade: perguntar é o caminho — o valor depende da faixa etária.
     if (quoteGuests.children > quoteGuests.ages.length) {
@@ -809,33 +1037,120 @@ if (quote) {
     return { type: 'reply', content: fallback };
   }
 
-  // Após a cotação, "sim"/"ok" é confirmação da proposta — não um novo pedido de consulta.
-  // Sem isso o cliente que já viu o valor recebia a lista de suítes de novo.
-  const quoteAlreadyShown = historyForRegion.some(
-    (m) => m.role === 'assistant' && /Total \(\d+ noites\): R\$|O que você achou da proposta/i.test(m.content)
-  );
-  if (quoteAlreadyShown && isConfirmation && hasDates) {
-    const summaryAskedYet = historyForRegion.some(
-      (m) => m.role === 'assistant' && /posso\s+encaminhar/i.test(m.content)
-    );
-    if (summaryAskedYet) {
-      logInfo('[orchestrator] Client confirmed forwarding after quote, triggering handoff', { phoneNumber });
-      const reply = 'Perfeito! Já estou encaminhando para nosso especialista confirmar sua reserva. Um momento! ✨';
+  // Porto de saída do bloco de cotação: o cliente viu a cotação quando
+  // quotePresented == true. "sim"/"ok" após esse ponto é confirmação de leitura,
+  // não intenção de reserva — não dispara handoff automaticamente.
+  const quoteState = getState(phoneNumber);
+  const quoteIsPresented = !!(quoteState.quotePresented);
+  const hasQuoteInState = !!(quoteState.quoteGenerated);
+  // Datas efetivas do fluxo comercial: a mensagem atual pode não repetir as datas
+  // ("Gostei", "pode ser"), então vale o que está persistido no estado.
+  const quoteFlowDates = hasDates
+    || (quoteState.checkIn && quoteState.checkOut ? { checkIn: quoteState.checkIn, checkOut: quoteState.checkOut } : null);
+
+  if (quoteIsPresented && quoteFlowDates) {
+    const normalizedClean = normalizeForMatch(cleanText);
+    const isExplicitReserve = EXPLICIT_RESERVE_PATTERN.test(cleanText) && !RESERVE_NEGATION_PATTERN.test(cleanText);
+    const isGenericAck = /^(?:ok|perfeito|entendi|obrigado|valeu|blz|beleza|show|top|legal|massa|tranquilo|t[aá]|combinado|certo)$/i.test(cleanText.trim());
+    // "sim" isolado é confirmação de resumo, não intenção de reserva:
+    // trata como genérico para não handoffar por "sim" acidental.
+    const isSim = /^\s*sim\s*$/i.test(cleanText.trim());
+    const isConfirmacao = CONFIRMATION_PATTERN.test(cleanText.trim());
+    const isConfirmOfSummary = isSim || isConfirmacao;
+
+    // Handoff comercial: cliente viu cotação, confirmou interesse e
+    // agora confirma o resumo da reserva — handoffConfirmed é a segunda trava.
+    if (isConfirmOfSummary && !quoteState.handoffConfirmed) {
+      const summaryAskedYet = historyForRegion.some(
+        (m) => m.role === 'assistant' && /posso\s+encaminhar/i.test(m.content)
+      );
+      if (summaryAskedYet) {
+        logInfo('[orchestrator] Summary confirmed, triggering handoff', { phoneNumber });
+        markHandoffConfirmed(phoneNumber);
+        const reply = 'Perfeito! Já estou encaminhando para nosso especialista confirmar sua reserva. Um momento! ✨';
+        appendMessage(phoneNumber, 'assistant', reply);
+        await humanDelay();
+        triggerHandoff(phoneNumber, 'confirmado_pelo_cliente');
+        return { type: 'reply', content: reply };
+      }
+      // Ainda não pediu confirmação: mostra o resumo que tem valor real.
+      const summaryReply = buildHandoffSummary({
+        phoneNumber,
+        pushName,
+        history: historyForRegion,
+        checkIn: quoteFlowDates.checkIn,
+        checkOut: quoteFlowDates.checkOut,
+      });
+      if (!summaryReply) {
+        logInfo('[orchestrator] Handoff blocked: no valid presented quote for current data', { phoneNumber });
+        const fallback = 'Preciso confirmar o valor exato antes de encaminhar. Um momento!';
+        appendMessage(phoneNumber, 'assistant', fallback);
+        return { type: 'reply', content: fallback };
+      }
+      appendMessage(phoneNumber, 'assistant', summaryReply);
+      return { type: 'reply', content: summaryReply };
+    }
+
+    // Intenção explícita de reserva → gerar resumo se ainda não viu
+    if (isExplicitReserve) {
+      const summaryAskedYet = historyForRegion.some(
+        (m) => m.role === 'assistant' && /posso\s+encaminhar/i.test(m.content)
+      );
+      if (summaryAskedYet) {
+        logInfo('[orchestrator] Explicit reserve after summary, triggering handoff', { phoneNumber });
+        markHandoffConfirmed(phoneNumber);
+        const reply = 'Perfeito! Já estou encaminhando para nosso especialista confirmar sua reserva. Um momento! ✨';
+        appendMessage(phoneNumber, 'assistant', reply);
+        await humanDelay();
+        triggerHandoff(phoneNumber, 'confirmado_pelo_cliente');
+        return { type: 'reply', content: reply };
+      }
+      logInfo('[orchestrator] Explicit reserve intent after quote, generating handoff summary', { phoneNumber });
+      const summaryReply = buildHandoffSummary({
+        phoneNumber,
+        pushName,
+        history: historyForRegion,
+        checkIn: quoteFlowDates.checkIn,
+        checkOut: quoteFlowDates.checkOut,
+      });
+      if (!summaryReply) {
+        logInfo('[orchestrator] buildHandoffSummary returned null (no valid quote), skipping handoff message', { phoneNumber });
+        const fallback = 'Preciso confirmar o valor exato antes de encaminhar. Um momento!';
+        appendMessage(phoneNumber, 'assistant', fallback);
+        return { type: 'reply', content: fallback };
+      }
+      appendMessage(phoneNumber, 'assistant', summaryReply);
+      return { type: 'reply', content: summaryReply };
+    }
+
+    // Aprovação da cotação ("Gostei", "Ficou bom", "Pode ser"): leva ao resumo
+    // de confirmação em vez de repetir o orçamento. Handoff só depois do resumo.
+    const isQuoteApproval = QUOTE_APPROVAL_PATTERN.test(cleanText.trim());
+    if (isQuoteApproval && !quoteState.handoffConfirmed) {
+      const summaries = historyForRegion.filter((m) => m.role === 'assistant' && /posso\s+encaminhar/i.test(m.content));
+      if (summaries.length === 0) {
+        logInfo('[orchestrator] Quote approved, generating handoff summary', { phoneNumber });
+        const summaryReply = buildHandoffSummary({
+          phoneNumber,
+          pushName,
+          history: historyForRegion,
+          checkIn: quoteFlowDates.checkIn,
+          checkOut: quoteFlowDates.checkOut,
+        });
+        if (summaryReply) {
+          appendMessage(phoneNumber, 'assistant', summaryReply);
+          return { type: 'reply', content: summaryReply };
+        }
+      }
+    }
+
+    // Confirmação genérica pós-cotação → mantém conversa aberta
+    if (isGenericAck) {
+      logInfo('[orchestrator] Generic acknowledgment after quote, keeping conversation open', { phoneNumber });
+      const reply = 'Que bom! Ficou alguma dúvida sobre a proposta ou deseja seguir com a reserva?';
       appendMessage(phoneNumber, 'assistant', reply);
-      await humanDelay();
-      triggerHandoff(phoneNumber, 'confirmado_pelo_cliente');
       return { type: 'reply', content: reply };
     }
-    logInfo('[orchestrator] Confirmation after quote, generating handoff summary', { phoneNumber });
-    const summaryReply = buildHandoffSummary({
-      phoneNumber,
-      pushName,
-      history: historyForRegion,
-      checkIn: hasDates.checkIn,
-      checkOut: hasDates.checkOut,
-    });
-    appendMessage(phoneNumber, 'assistant', summaryReply);
-    return { type: 'reply', content: summaryReply };
   }
 
   // Cliente declarou que ainda não tem data: rota para a ajuda de período (empatia + recomendação),
@@ -851,22 +1166,15 @@ if (quote) {
       const alreadyChecked = historyForRegion.some(m => m.role === 'assistant' && /quartos? dispon[ií]vel|lot[aã]o m[aá]xima|ótima not[ií]cia/i.test(m.content));
       // Se já prometeu consultar e agora recebeu confirmação curta COM datas no histórico, executa consulta ANTES de gerar resumo
       const promisedCheck = historyForRegion.some(m => m.role === 'assistant' && /vou consultar|um momento|verificando|posso verificar/i.test(m.content));
-      // Recupera hóspedes do histórico para permitir consulta automática em confirmações
-      let confirmedAdults = 0;
-      let confirmedChildren = 0;
-      const cGuestText = historyForRegion.map(m => m.content).join(' ');
-      const cAdultMatches = [...cGuestText.matchAll(/(\d+)\s*(?:adultos?|pessoas?)/gi)];
-      const cDoisMatches = [...cGuestText.matchAll(/(?:dois|2)\s+adultos?/gi)];
-      const lastCAdult = cAdultMatches.pop();
-      const lastCDois = cDoisMatches.pop();
-      if (lastCAdult && lastCAdult[1]) confirmedAdults = parseInt(lastCAdult[1], 10);
-      else if (lastCDois) confirmedAdults = 2;
-      const cChildMatches = [...cGuestText.matchAll(/(\d+)\s*(?:crian[cç]as?|kids?)/gi)];
-      const lastCChild = cChildMatches.pop();
-      if (lastCChild && lastCChild[1]) confirmedChildren = parseInt(lastCChild[1], 10);
+      // Usa estado estruturado como fonte primária para hóspedes em confirmações
+      const confirmState = getState(phoneNumber);
+      const confirmedAdults = confirmState && confirmState.adults != null ? confirmState.adults : 0;
+      const confirmedChildren = confirmState && confirmState.children != null ? confirmState.children : 0;
       const hasGuestsInHistory = (confirmedAdults + confirmedChildren) > 0;
-      // Dentro deste ramo hasDates é null: sem datas recuperáveis não há consulta nem resumo.
-      const recoveredDates = extractDates(historyForRegion.map(m => m.content).join(' '));
+      // Fonte primária: estado estruturado; fallback: regex no histórico textual
+      const recoveredDates = (confirmState && confirmState.checkIn && confirmState.checkOut)
+        ? { checkIn: confirmState.checkIn, checkOut: confirmState.checkOut }
+        : extractDates(historyForRegion.map(m => m.content).join(' '));
       // Datas já citadas nesta conversa + grupo conhecido: segue direto para a consulta,
       // sem pedir a data de novo (o cliente não repete data nem mês).
       if (!alreadyChecked && recoveredDates && hasGuestsInHistory) {
@@ -877,29 +1185,20 @@ if (quote) {
         logInfo('[orchestrator] Confirmation after promise-to-check, forcing availability query', { phoneNumber });
         const finalCheckIn = recoveredDates.checkIn;
         const finalCheckOut = recoveredDates.checkOut;
-        const guestTextForQuery = historyForRegion.map(m => m.content).join(' ');
-        let qAdults = 0;
-        let qChildren = 0;
-        const qAdultMatches = [...guestTextForQuery.matchAll(/(\d+)\s*(?:adultos?|pessoas?)/gi)];
-        const qDoisMatches = [...guestTextForQuery.matchAll(/(?:dois|2)\s+adultos?/gi)];
-        const lastQAdult = qAdultMatches.pop();
-        const lastQDois = qDoisMatches.pop();
-        if (lastQAdult && lastQAdult[1]) qAdults = parseInt(lastQAdult[1], 10);
-        else if (lastQDois) qAdults = 2;
-        const qChildMatches = [...guestTextForQuery.matchAll(/(\d+)\s*(?:crian[cç]as?|kids?)/gi)];
-        const lastQChild = qChildMatches.pop();
-        if (lastQChild && lastQChild[1]) qChildren = parseInt(lastQChild[1], 10);
+        // Usa estado estruturado para hóspedes na consulta após promessa
+        const qAdults = confirmState && confirmState.adults != null ? confirmState.adults : 0;
+        const qChildren = confirmState && confirmState.children != null ? confirmState.children : 0;
         const qTotal = (qAdults + qChildren) || undefined;
         const result = await checkAvailability(finalCheckIn, finalCheckOut, qTotal);
         if (!result || result.error || result.available == null) {
           return await handoffAfterFailure(phoneNumber, 'falha_consulta_disponibilidade');
         }
         if (result.available === true) {
-          const located = withAvailabilityLocation(historyForRegion, formatAvailabilityReply(result, finalCheckIn, finalCheckOut, qTotal), false);
+          const located = withAvailabilityLocation(historyForRegion, formatAvailabilityReply(result, finalCheckIn, finalCheckOut, qTotal, selectedRoom), false);
           appendMessage(phoneNumber, 'assistant', located.content);
           return { type: 'reply', content: located.content, sendLocationAfterReply: located.sendLocationAfterReply };
         } else {
-          const reply = formatAvailabilityReply(result, finalCheckIn, finalCheckOut, qTotal);
+          const reply = formatAvailabilityReply(result, finalCheckIn, finalCheckOut, qTotal, selectedRoom);
           appendMessage(phoneNumber, 'assistant', reply);
           return { type: 'reply', content: reply };
         }
@@ -917,22 +1216,42 @@ if (quote) {
           return { type: 'reply', content: reply };
         }
         logInfo('[orchestrator] Confirmation after availability shown, generating summary for handoff', { phoneNumber });
+        // Bloqueio 2C.7: se cotação ainda não foi apresentada, gerar cotação antes do resumo de confirmação
+        const currentStateForConfirm = getState(phoneNumber);
+        if (!currentStateForConfirm.quotePresented && recoveredDates.checkIn && recoveredDates.checkOut) {
+          const roomForQuoteBeforeConfirm = roomByName(currentStateForConfirm.selectedRoom);
+          if (roomForQuoteBeforeConfirm) {
+            const quoteBeforeConfirm = buildQuoteReply({ history: getHistory(phoneNumber), checkIn: recoveredDates.checkIn, checkOut: recoveredDates.checkOut, room: roomForQuoteBeforeConfirm, state: currentStateForConfirm });
+            if (quoteBeforeConfirm) {
+// quotePresented é marcado pelo server após entrega real no WhatsApp (markQuotePresented)
+              appendMessage(phoneNumber, 'assistant', quoteBeforeConfirm.content);
+              return { type: 'reply', content: quoteBeforeConfirm.content };
+            }
+          }
+        }
         const summaryReply = buildHandoffSummary({
           phoneNumber,
           pushName,
           history: getHistory(phoneNumber),
           checkIn: recoveredDates.checkIn,
           checkOut: recoveredDates.checkOut,
-        });
-        appendMessage(phoneNumber, 'assistant', summaryReply);
-        return { type: 'reply', content: summaryReply };
+	        });
+	        if (!summaryReply) {
+	          logInfo('[orchestrator] buildHandoffSummary returned null after recovered dates, skipping handoff message', { phoneNumber });
+	          const fallback = 'Preciso confirmar o valor exato antes de encaminhar. Um momento!';
+	          appendMessage(phoneNumber, 'assistant', fallback);
+	          return { type: 'reply', content: fallback };
+	        }
+	        appendMessage(phoneNumber, 'assistant', summaryReply);
+	        return { type: 'reply', content: summaryReply };
       } else if (!hasDates) {
         logInfo('[orchestrator] No dates found in message or history, asking user', { phoneNumber });
-        const historyText = historyForRegion.map(m => m.content).join(' ');
-        const hasNoDates = !extractDates(historyText);
+        // Fonte primária: estado estruturado; fallback: regex no histórico textual
+        const freshStateForAsk = getState(phoneNumber);
+        const hasNoDates = !(freshStateForAsk && freshStateForAsk.checkIn) && !extractDates(historyForRegion.map(m => m.content).join(' '));
         // Se o cliente já mencionou um mês (ex: "dezembro"), NÃO usar modo consultivo nem falar de temporadas.
         // Pedir os dias diretamente — isso evita a resposta errada quando o cliente diz "tem vaga para dezembro?".
-        const mentionedMonth = /\b(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/i.test(cleanText + ' ' + historyText);
+        const mentionedMonth = /\b(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\b/i.test(cleanText + ' ' + historyForRegion.map(m => m.content).join(' '));
         const askDatesReply = 'Claro, posso verificar a disponibilidade. Me diz as datas de entrada e saída que já consulto para você.';
         let reply;
         if (mentionedMonth || !hasNoDates) {
@@ -964,27 +1283,25 @@ if (quote) {
     const finalCheckIn = validation.checkIn || hasDates.checkIn;
     const finalCheckOut = validation.checkOut || hasDates.checkOut;
 
-    // Extrai total de hóspedes do histórico para passar à consulta
-    const historyForGuests = getHistory(phoneNumber);
-    const guestText = historyForGuests.map(m => m.content).join(' ');
-    // Parser consolidado de hóspedes: busca apenas a ÚLTIMA menção válida de cada tipo para evitar duplicação por eco/repetição
-    let adults = 0;
-    let children = 0;
-    const allAdultMatches = [...guestText.matchAll(/(\d+)\s*(?:adultos?|pessoas?)/gi)];
-    const allDoisMatches = [...guestText.matchAll(/(?:dois|2)\s+adultos?/gi)];
-    const lastAdultMatch = allAdultMatches.pop();
-    const lastDoisMatch = allDoisMatches.pop();
-    if (lastAdultMatch && lastAdultMatch[1]) adults = parseInt(lastAdultMatch[1], 10);
-    else if (lastDoisMatch) adults = 2;
-    const allChildMatches = [...guestText.matchAll(/(\d+)\s*(?:crian[cç]as?|kids?)/gi)];
-    const lastChildMatch = allChildMatches.pop();
-    if (lastChildMatch && lastChildMatch[1]) children = parseInt(lastChildMatch[1], 10);
-    // Validação cruzada: se houver total explícito mais recente que seja maior, usa ele como piso
-    const allTotalMatches = [...guestText.matchAll(/(\d+)\s*pessoas?/gi)];
-    const lastTotalMatch = allTotalMatches.pop();
-    const explicitTotal = lastTotalMatch ? parseInt(lastTotalMatch[1], 10) : 0;
-    const computedTotal = adults + children;
-    const totalGuests = (explicitTotal > computedTotal ? explicitTotal : computedTotal) || undefined;
+    // Usa estado estruturado como fonte de verdade para hóspedes (Etapa 2C.2)
+    const currentState = getState(phoneNumber);
+    let adults = currentState.adults || 0;
+    let children = currentState.children || 0;
+    // Fallback regex apenas quando o estado não tiver dados (conversa antiga sem hidratação)
+    if (!adults && !children) {
+      const historyForGuests = getHistory(phoneNumber);
+      const guestText = historyForGuests.map(m => m.content).join(' ');
+      const allAdultMatches = [...guestText.matchAll(/(\d+)\s*(?:adultos?|pessoas?)/gi)];
+      const allDoisMatches = [...guestText.matchAll(/(?:dois|2)\s+adultos?/gi)];
+      const lastAdultMatch = allAdultMatches.pop();
+      const lastDoisMatch = allDoisMatches.pop();
+      if (lastAdultMatch && lastAdultMatch[1]) adults = parseInt(lastAdultMatch[1], 10);
+      else if (lastDoisMatch) adults = 2;
+      const allChildMatches = [...guestText.matchAll(/(\d+)\s*(?:crian[cç]as?|kids?)/gi)];
+      const lastChildMatch = allChildMatches.pop();
+      if (lastChildMatch && lastChildMatch[1]) children = parseInt(lastChildMatch[1], 10);
+    }
+    const totalGuests = (adults + children) || undefined;
 
     // Sem número de hóspedes não há como indicar a melhor suíte: pede a quantidade ANTES de listar
     // (o catálogo exibido precisa ser filtrado pela capacidade do grupo).
@@ -1028,21 +1345,40 @@ if (quote) {
       // FALHA REAL: nenhuma suíte/valor inventado — o atendimento humano assume o contato.
       return await handoffAfterFailure(phoneNumber, 'falha_consulta_disponibilidade');
     }
-    const located = withAvailabilityLocation(historyForRegion, formatAvailabilityReply(result, finalCheckIn, finalCheckOut, totalGuests), true);
+    const located = withAvailabilityLocation(historyForRegion, formatAvailabilityReply(result, finalCheckIn, finalCheckOut, totalGuests, selectedRoom), false);
+    // Registra os parâmetros consultados: sem isso a cotação seguinte repete a consulta
+    // à HospedInn com os mesmos dados (e o certo é reaproveitar o que já foi verificado).
+    if (result.available === true) {
+      // C1: grava as datas VALIDADAS (ano corrigido, mês completado) no estado — a FASE 0
+      // só grava a data crua da mensagem, então sem isso check_in fica null e a cotação
+      // seguinte pede as datas de novo, mesmo tendo acabado de consultá-las.
+      // Precisa vir ANTES do persistResult: mudar datas invalida a disponibilidade anterior.
+      try {
+        updateState(phoneNumber, { checkIn: finalCheckIn, checkOut: finalCheckOut });
+      } catch (e) {
+        logWarn('[orchestrator] updateState failed persisting validated dates', { phoneNumber, error: e.message });
+      }
+      // Registra os parâmetros consultados: sem isso a cotação seguinte repete a consulta
+      // à HospedInn com os mesmos dados (e o certo é reaproveitar o que já foi verificado).
+      persistResult(phoneNumber, 'availability', { checkIn: finalCheckIn, checkOut: finalCheckOut, guests: totalGuests, room: selectedRoom ? selectedRoom.name : null, ages: ((currentState.childrenAges || []).join(',')) }, { available: true, roomCount: result.availableRooms ? result.availableRooms.length : null });
+    }
     const reply = located.content;
     const sendLocationAfterReply = located.sendLocationAfterReply;
 
     // Divide a resposta em duas mensagens para humanizar: confirmação + recomendações
     const splitPoint = reply.indexOf('\n\n🏡');
     if (splitPoint > 0 && result.available === true) {
-      const msg1 = reply.substring(0, splitPoint).trim();
-      const msg2 = reply.substring(splitPoint).trim();
+      let msg1 = reply.substring(0, splitPoint).trim();
+      let msg2 = reply.substring(splitPoint).trim();
+      // Sanitizador WhatsApp: remove --- e protege contra alucinação em multi_reply
+      const WHATSAPP_SEP = /^\s*-{3,}\s*$/gm;
+      msg1 = msg1.replace(WHATSAPP_SEP, '').replace(/\n{3,}/g, '\n\n').trim();
+      msg2 = msg2.replace(WHATSAPP_SEP, '').replace(/\n{3,}/g, '\n\n').trim();
       appendMessage(phoneNumber, 'assistant', msg1);
       await humanDelay();
       appendMessage(phoneNumber, 'assistant', msg2);
       return { type: 'multi_reply', contents: [msg1, msg2], sendLocationAfterReply };
     }
-
     appendMessage(phoneNumber, 'assistant', reply);
     // NÃO dispara handoff automaticamente após disponibilidade.
     // O handoff só ocorre quando o cliente confirma explicitamente ou escolhe a suíte.
@@ -1069,6 +1405,49 @@ if (quote) {
     return { type: 'reply', content: reply };
   }
 
+// BLOQUEIO DE PREÇOS PELA LLM (Etapa 2C.6): se o cliente pediu valor/preço/cotação
+  // e chegou até aqui sem passar pelo fluxo estruturado, NÃO permite que a LLM invente valores.
+  // Força handoff ou pergunta por dados faltantes.
+  const quoteIntentInFallback = detectQuoteRequest(cleanText);
+  if (quoteIntentInFallback) {
+    const blockState = getState(phoneNumber);
+    const blockRoom = selectedRoomFromText(cleanText) || roomByName(blockState.selectedRoom) || null;
+    const hasBlockDates = !!(blockState.checkIn && blockState.checkOut);
+    const hasBlockGuests = blockState.adults != null && blockState.adults > 0;
+
+    if (!blockRoom) {
+      logInfo('[orchestrator] Quote intent without room in LLM fallback, asking for room', { phoneNumber });
+      const reply = 'Para eu te passar o valor certinho, qual suíte você prefere? Posso recomendar as melhores opções para o seu grupo se quiser!';
+      appendMessage(phoneNumber, 'assistant', reply);
+      return { type: 'reply', content: reply };
+    }
+    if (!hasBlockDates || !hasBlockGuests) {
+      logInfo('[orchestrator] Quote intent without dates/guests in LLM fallback, handing off', { phoneNumber });
+      const reply = 'Preciso confirmar alguns detalhes antes de te passar o valor exato. Já estou encaminhando para nosso especialista verificar a melhor tarifa para você!';
+      appendMessage(phoneNumber, 'assistant', reply);
+      await humanDelay();
+      triggerHandoff(phoneNumber, 'cotacao_sem_dados_completos');
+      return { type: 'reply', content: reply };
+    }
+    // Dados completos mas não passou pelo fluxo estruturado: força consulta via pricing.js
+    logInfo('[orchestrator] Quote intent with full data in LLM fallback, forcing structured quote', { phoneNumber });
+    const forcedResult = await checkAvailability(blockState.checkIn, blockState.checkOut, blockState.adults + (blockState.children || 0));
+    if (!forcedResult || forcedResult.error || forcedResult.available == null) {
+      return await handoffAfterFailure(phoneNumber, 'falha_consulta_disponibilidade_fallback');
+    }
+    const forcedQuote = buildQuoteReply({ history: historyForRegion, checkIn: blockState.checkIn, checkOut: blockState.checkOut, room: blockRoom, state: blockState });
+	    if (forcedQuote && forcedQuote.content) {
+	      appendMessage(phoneNumber, 'assistant', forcedQuote.content);
+	      return { type: 'reply', content: forcedQuote.content };
+    }
+    // Se buildQuoteReply falhar, handoff seguro
+    const safeReply = 'Estou verificando o valor exato da sua reserva. Um momento que já te confirmo!';
+    appendMessage(phoneNumber, 'assistant', safeReply);
+    await humanDelay();
+    triggerHandoff(phoneNumber, 'cotacao_estrutura_falhou');
+    return { type: 'reply', content: safeReply };
+  }
+
   // Default: use LLM
   logInfo('[orchestrator] Falling through to LLM path', { phoneNumber });
   const history = getHistory(phoneNumber);
@@ -1079,13 +1458,33 @@ if (quote) {
     { role: 'system', content: nameContext },
     { role: 'system', content: phoneContext },
     ...(saidOnlyAdults ? [{ role: 'system', content: '[REGRA OBRIGATÓRIA] O cliente já informou que são APENAS ADULTOS. NUNCA pergunte sobre crianças, idades de crianças ou quantidade de crianças. Pule essa etapa completamente e siga para o próximo passo do fluxo.' }] : []),
-    ...history.map((m) => ({ role: m.role, content: m.content })),
+    ...history
+      .filter((m) => !/^\[AVAILABILITY_CHECK:/.test(m.content))
+      .map((m) => ({ role: m.role, content: m.content })),
   ];
 
   logInfo('[orchestrator] Calling LLM API', { phoneNumber, messageCount: messages.length });
   const llmReply = await callLLM(messages);
   logInfo('[orchestrator] LLM API returned', { phoneNumber, responseLength: llmReply?.length ?? 0, isFallback: !llmReply });
   const reply = llmReply || FALLBACK_MESSAGE;
+
+  // P4: Bloqueio de promessas vazias — se a LLM promete consultar mas não há dados suficientes,
+  // substitui a promessa por solicitação dos dados faltantes em vez de deixar o cliente sem retorno.
+  const PROMISE_PATTERN_PRECHECK = /vou\s+(?:consultar|verificar|checar|conferir)|consultar\s+a\s+disponibilidade|verificar\s+a\s+disponibilidade|checar\s+a\s+disponibilidade|verificando\s+a\s+disponibilidade|um\s+momento/i;
+  if (llmReply && PROMISE_PATTERN_PRECHECK.test(llmReply)) {
+    const precheckState = getState(phoneNumber);
+    const hasDates = !!(precheckState && precheckState.checkIn && precheckState.checkOut);
+    const hasGuests = !!(precheckState && precheckState.adults != null && precheckState.adults > 0);
+    if (!hasDates || !hasGuests) {
+      logInfo('[orchestrator] P4: blocking empty promise from LLM', { phoneNumber, hasDates, hasGuests });
+      const missingParts = [];
+      if (!hasDates) missingParts.push('as datas');
+      if (!hasGuests) missingParts.push('quantas pessoas vão se hospedar');
+      const askMissing = `Para eu verificar a disponibilidade, preciso saber ${missingParts.join(' e ')}. Pode me informar?`;
+      appendMessage(phoneNumber, 'assistant', askMissing);
+      return { type: 'reply', content: askMissing };
+    }
+  }
 
   // REQUISITO 1.3: a LLM às vezes responde "vou consultar" sem que a consulta aconteça — e aí
   // o cliente fica sem retorno para sempre. Com datas e hóspedes completos, executa a consulta
@@ -1094,14 +1493,14 @@ if (quote) {
   // Se a disponibilidade já foi entregue nesta conversa, repetir a consulta só duplicaria a lista de suítes.
   const availabilityAlreadyDelivered = historyForRegion.some(m => m.role === 'assistant' && /comportam seu grupo|op[cç][oõ]es de su[ií]tes|quartos? dispon[ií]vel/i.test(m.content));
   if (llmReply && !availabilityAlreadyDelivered && !HANDOFF_SENT_PATTERN.test(reply) && PROMISE_PATTERN.test(reply)) {
-    const promisedDates = extractDates(cleanText) || extractDates(historyForRegion.map(m => m.content).join(' '));
-    const groupHistory = historyForRegion.filter(m => m.role === 'user').map(m => m.content).join(' ');
-    const groupAdults = [...groupHistory.matchAll(/(\d+)\s*(?:adultos?|pessoas?)/gi)].pop();
-    const groupChildren = [...groupHistory.matchAll(/(\d+)\s*crian[cç]as?/gi)].pop();
-    const promisedGuests = (groupAdults ? parseInt(groupAdults[1], 10) : 0) + (groupChildren ? parseInt(groupChildren[1], 10) : 0);
-    const promisedChildren = groupChildren ? parseInt(groupChildren[1], 10) : 0;
-    const promisedAges = extractChildrenAges(groupHistory);
-    if (promisedDates && promisedGuests > 0 && promisedChildren <= promisedAges.length) {
+    // Usa estado estruturado como fonte primária para promessa da LLM
+    const promiseState = getState(phoneNumber);
+    const promisedDates = extractDates(cleanText) || (promiseState && promiseState.checkIn && promiseState.checkOut ? { checkIn: promiseState.checkIn, checkOut: promiseState.checkOut } : null);
+    const promisedAdults = promiseState && promiseState.adults != null ? promiseState.adults : 0;
+    const promisedChildrenCount = promiseState && promiseState.children != null ? promiseState.children : 0;
+    const promisedGuests = promisedAdults + promisedChildrenCount;
+    const promisedAges = (promiseState && promiseState.childrenAges) || [];
+    if (promisedDates && promisedGuests > 0 && promisedChildrenCount <= promisedAges.length) {
       const promisedValidation = validateDates(promisedDates.checkIn, promisedDates.checkOut);
       if (promisedValidation.valid) {
         logInfo('[orchestrator] LLM promised a check, executing availability now', { phoneNumber, guests: promisedGuests });
@@ -1136,6 +1535,7 @@ if (quote) {
   // Se o primeiro bloco já traz contexto de endereço, o pin vai depois dele.
   // Endereço inline: só se o usuário pediu explicitamente E a resposta não tem contexto
   // E o pin NÃO vai ser enviado (evita duplicar o que já vem no pin).
+  const firstBlockHasContext = LOCATION_CONTEXT_PATTERN.test(replyBlocks ? replyBlocks[0] : reply);
   const sendLocationAfterReply = canOfferLocation && firstBlockHasContext;
 
   const userExplicitlyRequested = historyForRegion.length > 0 &&
@@ -1149,17 +1549,57 @@ if (quote) {
     ? `${reply}\n\nNosso endereço é Praça Bandeira, 10 - Passagem, Cabo Frio - RJ, 28906-320.`
     : reply;
 
-  !sendLocationAfterReply;  // pinInline já cobre o contexto → não duplicar
+
+  // Proteção 2C.8: sanitizar placeholders não resolvidos antes do envio
+  const PLACEHOLDER_PATTERN = /\[valor exato da cota[çc][aã]o(?:[^\]]*)\]|\[(?:nome|telefone|data|su[ií]te|n[ºo°]?\s*(?:adultos|crian[cç]as))\]/gi;
+  let safeReply = locationReply;
+  if (PLACEHOLDER_PATTERN.test(safeReply)) {
+    logWarn('[orchestrator] Placeholder detected in reply, blocking and using fallback', { phoneNumber, match: safeReply.match(PLACEHOLDER_PATTERN) });
+    // Tenta recuperar cotação válida do estado antes de usar fallback genérico
+    const recoveryState = getState(phoneNumber);
+    const recoveryRoom = recoveryState && recoveryState.selectedRoom ? roomByName(recoveryState.selectedRoom) : null;
+    if (recoveryState && recoveryState.checkIn && recoveryState.checkOut && (recoveryState.adults > 0 || recoveryState.children > 0)) {
+      const recoveredQuote = buildQuoteReply({ history: historyForRegion, checkIn: recoveryState.checkIn, checkOut: recoveryState.checkOut, room: recoveryRoom, state: recoveryState });
+      if (recoveredQuote && recoveredQuote.content && !PLACEHOLDER_PATTERN.test(recoveredQuote.content)) {
+        safeReply = recoveredQuote.content;
+        logInfo('[orchestrator] Quote recovered successfully after placeholder block', { phoneNumber });
+      } else {
+        safeReply = 'Estou confirmando o valor exato da sua reserva. Um momento que já te passo todos os detalhes!';
+      }
+    } else {
+      safeReply = 'Preciso confirmar alguns detalhes para te passar o valor correto. Já estou verificando!';
+    }
+  }
+
+  // SANITIZADOR WHATSAPP: remove separadores artificiais --- antes do envio.
+  // A divisão em blocos acontece ANTES de remover o separador, senão a informação
+  // de onde dividir se perde e tudo vira uma mensagem só.
+  const WHATSAPP_SEPARATOR_PATTERN = /^\s*-{3,}\s*$/gm;
+  const safeBlocks = safeReply
+    .split(/\n?-{3,}\n?/)
+    .map((b) => b.replace(WHATSAPP_SEPARATOR_PATTERN, '').replace(/\n{3,}/g, '\n\n').trim())
+    .filter(Boolean);
+  let finalReplyBlocks = safeBlocks.length > 1 ? safeBlocks : null;
+  let whatsappSafeReply = safeBlocks.length > 1 ? safeBlocks.join('\n\n') : (safeBlocks[0] || '');
+
+  // PROTEÇÃO FINAL CONTRA ALUCINAÇÃO: valida dados antes do envio
+  const HAS_AVAILABILITY_CLAIM = /dispon[ií]vel|su[ií]te|quarto|apartamento|R\$\s*\d/i.test(whatsappSafeReply);
+  const hasValidStateForQuote = state.checkIn && state.checkOut && (state.adults > 0) && state.selectedRoom;
+  if (HAS_AVAILABILITY_CLAIM && !hasValidStateForQuote && !state.quotePresented) {
+    logWarn('[orchestrator] Hallucination blocked: availability claim without valid state', { phoneNumber });
+    whatsappSafeReply = 'Estou verificando a disponibilidade exata para você. Um momento!';
+    finalReplyBlocks = null;
+  }
 
   // Aplica delay humano antes de retornar resposta da LLM
   await humanDelay();
-  logInfo('[orchestrator] processMessage returning', { phoneNumber, resultType: finalReplyBlocks ? 'multi_reply' : 'reply', content: locationReply.substring(0, 100) });
+  logInfo('[orchestrator] processMessage returning', { phoneNumber, resultType: finalReplyBlocks ? 'multi_reply' : 'reply', content: whatsappSafeReply.substring(0, 100) });
   if (finalReplyBlocks) {
-    finalReplyBlocks.forEach(b => appendMessage(phoneNumber, 'assistant', b));
+    finalReplyBlocks.forEach((b) => appendMessage(phoneNumber, 'assistant', b));
     return { type: 'multi_reply', contents: finalReplyBlocks, sendLocationAfterReply };
   }
-  appendMessage(phoneNumber, 'assistant', locationReply);
-  return { type: 'reply', content: locationReply, sendLocationAfterReply };
+  appendMessage(phoneNumber, 'assistant', whatsappSafeReply);
+  return { type: 'reply', content: whatsappSafeReply, sendLocationAfterReply };
 }
 
-module.exports = { processMessage };
+module.exports = { processMessage, formatAvailabilityReply };

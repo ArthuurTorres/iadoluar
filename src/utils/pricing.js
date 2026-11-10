@@ -168,6 +168,7 @@ module.exports = {
   formatQuote,
   extractChildrenAges,
   formatBRL,
+  formatDateBR,
   NIGHTLY_RATES,
   EXTRA_RATES,
 };
