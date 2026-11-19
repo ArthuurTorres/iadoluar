@@ -32,9 +32,10 @@ const HANDOFF_SENT_PATTERN = /(?:estou|vou)\s+encaminhando|encaminhando\s+(?:ago
 
 const AVAILABILITY_PATTERN = /disponib|\btem\s+vaga|\bvagas?\b|quarto\s+livre|datas\s+de\s+entrada|check[-\s]?in/i;
 // Confirmações curtas válidas para prosseguir em fluxos de coleta/disponibilidade.
-// NÃO inclui "ok", "perfeito", "entendi", "obrigado", "certo" — esses são apenas
+// NÃO inclui "ok", "perfeito", "entendi", "obrigado", "certo" sozinhos — são apenas
 // confirmações de leitura após cotação e não devem disparar handoff nem consulta automática.
-const CONFIRMATION_PATTERN = /^(?:sim|isso|correto|confirmo|pode|claro|ta|tá|exato|certinho|confirmado)$/i;
+// Inclui as formas compostas ("isso mesmo", "exato isso") que o cliente realmente usa.
+const CONFIRMATION_PATTERN = /^(?:\s*(?:sim|correto|certeza|confirmo|pode|claro|ta|tá|exato|certinho|confirmado|isso|só isso|deixa|só ess[ae]|assim|mesmo|exatamente|exato isso|isso mesmo)\s*)$/i;
 
 // Intenção EXPLÍCITA de reserva: só estas frases disparam handoff pós-cotação.
 // Exclui genéricos ("sim", "ok") e hipotéticos/negativos ("não quero reservar ainda").
@@ -598,6 +599,15 @@ function buildHandoffSummary({ phoneNumber, pushName, history, checkIn, checkOut
   const phoneLine = `📱 Telefone: ${phoneNumber}\n`;
   // Usa estado estruturado como fonte primária para handoff
   const handoffState = getState(phoneNumber);
+  // Datas: prioriza o estado persistido (o mesmo que alimentou o cálculo);
+  // só cai nos parâmetros da mensagem se o estado não tiver. Sem datas, não monta
+  // resumo — melhor não enviar do que enviar data inventada.
+  const finalCheckIn = (handoffState && handoffState.checkIn) || checkIn || null;
+  const finalCheckOut = (handoffState && handoffState.checkOut) || checkOut || null;
+  if (!finalCheckIn || !finalCheckOut) {
+    logWarn('[orchestrator] Handoff summary blocked: no dates in state or message', { phoneNumber });
+    return null;
+  }
   const sumAdults = handoffState && handoffState.adults != null ? handoffState.adults : 0;
   const sumChildren = handoffState && handoffState.children != null ? handoffState.children : 0;
   const ages = (handoffState && handoffState.childrenAges) || [];
@@ -605,12 +615,18 @@ function buildHandoffSummary({ phoneNumber, pushName, history, checkIn, checkOut
   const guestsLine = (sumAdults > 0 || sumChildren > 0)
     ? `👥 Pessoas: ${sumAdults} adultos${sumChildren > 0 ? `, ${sumChildren} crianças${agesLabel}` : ''}\n`
     : '';
-  const datesLine = `📅 Check-in: ${formatDateBR(checkIn)}\n📅 Check-out: ${formatDateBR(checkOut)}\n`;
+  const checkInBR = formatDateBR(finalCheckIn);
+  const checkOutBR = formatDateBR(finalCheckOut);
+  if (!checkInBR || !checkOutBR || /Invalid/i.test(checkInBR) || /Invalid/i.test(checkOutBR)) {
+    logWarn('[orchestrator] Handoff summary blocked: invalid dates', { phoneNumber, finalCheckIn, finalCheckOut });
+    return null;
+  }
+  const datesLine = `📅 Check-in: ${checkInBR}\n📅 Check-out: ${checkOutBR}\n`;
 
   // O valor e a suíte vêm do orçamento que o cliente recebeu, não de um recálculo.
-  const presentedQuote = persistedQuoteFor(phoneNumber, { checkIn, checkOut });
+  const presentedQuote = persistedQuoteFor(phoneNumber, { checkIn: finalCheckIn, checkOut: finalCheckOut });
   if (!presentedQuote) {
-    logWarn('[orchestrator] Handoff summary blocked: no presented quote for current data', { phoneNumber, checkIn, checkOut, room: handoffState ? handoffState.selectedRoom : null });
+    logWarn('[orchestrator] Handoff summary blocked: no presented quote for current data', { phoneNumber, finalCheckIn, finalCheckOut, room: handoffState ? handoffState.selectedRoom : null });
     return null;
   }
   // A suíte do resumo é a que foi cotada: com recomendação automática o estado não
@@ -620,7 +636,7 @@ function buildHandoffSummary({ phoneNumber, pushName, history, checkIn, checkOut
   const summaryRoomLine = quotedRoomName ? `🏡 Suíte: ${summaryRoom ? summaryRoom.name : quotedRoomName}\n` : '';
   const totalLine = `💰 Valor total: ${formatBRL(presentedQuote.result.total)} (${presentedQuote.result.nights} noites)\n`;
 
-  return `✨ Perfeito! Vamos confirmar seus dados antes de encaminhar para nosso especialista:\n${nameLine}${phoneLine}${guestsLine}${datesLine}${summaryRoomLine}${totalLine}✅ Está tudo correto? Posso encaminhar para nosso especialista confirmar sua reserva? 🎉`;
+  return `✨ Perfeito! Vou encaminhar seus dados para nosso especialista dar continuidade ao atendimento:\n\n${nameLine}${phoneLine}${guestsLine}${datesLine}${summaryRoomLine}${totalLine}\n\nEm breve, nosso especialista dará continuidade ao atendimento para confirmar sua reserva. Obrigado por escolher o Casarão do Luar!`;
 }
 
 function formatAvailabilityReply(result, checkIn, checkOut, totalGuests, selectedRoom = null) {
@@ -675,7 +691,7 @@ function withAvailabilityLocation(history, reply, forcePin = false) {
   const alreadySent = history.some(m => m.role === 'assistant' && m.content === '[LOCATION_SENT]');
   // O pin só sai para quem não conhece a região ou pede explicitamente: avaliado no texto
   // ORIGINAL, antes do endereço ser acrescentado (senão todo fluxo viraria pedido de pin).
-  const shouldSendPin = !alreadySent && (forcePin || LOCATION_CONTEXT_PATTERN.test(reply));
+	  const shouldSendPin = forcePin || (!alreadySent && LOCATION_CONTEXT_PATTERN.test(reply));
   // O endereço é obrigatório em todo fluxo de disponibilidade/preço/reserva, inclusive para
   // quem já conhece a região (prompt v12) — nesse caso sem pin.
   if (reply.includes(POUSADA_ADDRESS_LINE)) return { content: reply, sendLocationAfterReply: shouldSendPin };
@@ -875,7 +891,13 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
       appendMessage(phoneNumber, 'assistant', dateMsg);
       return { type: 'multi_reply', contents: [locatedCtx.content, dateMsg], sendLocationAfterReply: locatedCtx.sendLocationAfterReply };
     }
-    // Se conhece a região, cai no fluxo normal abaixo (recuperação de datas/disponibilidade)
+    // Cliente conhece a região: mensagem acolhedora + endereço + pin (mesmo fluxo do cenário B)
+    const knowsMsg = 'Que ótimo! Você já sabe que estamos pertinho da Praia do Forte, né?';
+    const dateMsg = 'Agora me conta: para quais datas você está pensando?';
+    const locatedKnows = withAvailabilityLocation(historyForRegion, knowsMsg, true);
+    appendMessage(phoneNumber, 'assistant', locatedKnows.content);
+    appendMessage(phoneNumber, 'assistant', dateMsg);
+    return { type: 'multi_reply', contents: [locatedKnows.content, dateMsg], sendLocationAfterReply: locatedKnows.sendLocationAfterReply };
   }
 
   // Se a mensagem atual não tem datas mas é confirmação, pedido de disponibilidade OU resposta de mês,
@@ -1007,12 +1029,12 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
     });
 
 	if (quote) {
-      const located = withAvailabilityLocation(historyForRegion, quote.content, false);
-      appendMessage(phoneNumber, 'assistant', located.content);
+      // 2C.15: endereço/pin só na etapa inicial de localização — não repete na cotação.
+      appendMessage(phoneNumber, 'assistant', quote.content);
       persistResult(phoneNumber, 'quote', { checkIn: quoteDates.checkIn, checkOut: quoteDates.checkOut, adults: quoteGuests.adults, childrenAges: quoteGuests.ages, room: roomForQuote ? roomForQuote.name : null }, { total: quote.total, nights: quote.nights });
       await humanDelay();
       // quotePresented só é marcado pelo server depois que o WhatsApp confirma a entrega.
-      return { type: 'reply', content: located.content, sendLocationAfterReply: located.sendLocationAfterReply, quoteGenerated: true };
+      return { type: 'reply', content: quote.content, quoteGenerated: true };
 	}
 
     // Criança sem idade: perguntar é o caminho — o valor depende da faixa etária.
@@ -1058,29 +1080,13 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
     const isConfirmacao = CONFIRMATION_PATTERN.test(cleanText.trim());
     const isConfirmOfSummary = isSim || isConfirmacao;
 
-    // Handoff comercial: cliente viu cotação, confirmou interesse e
-    // agora confirma o resumo da reserva — handoffConfirmed é a segunda trava.
-    if (isConfirmOfSummary && !quoteState.handoffConfirmed) {
-      const summaryAskedYet = historyForRegion.some(
-        (m) => m.role === 'assistant' && /posso\s+encaminhar/i.test(m.content)
-      );
-      if (summaryAskedYet) {
-        logInfo('[orchestrator] Summary confirmed, triggering handoff', { phoneNumber });
-        markHandoffConfirmed(phoneNumber);
-        const reply = 'Perfeito! Já estou encaminhando para nosso especialista confirmar sua reserva. Um momento! ✨';
-        appendMessage(phoneNumber, 'assistant', reply);
-        await humanDelay();
-        triggerHandoff(phoneNumber, 'confirmado_pelo_cliente');
-        return { type: 'reply', content: reply };
-      }
-      // Ainda não pediu confirmação: mostra o resumo que tem valor real.
-      const summaryReply = buildHandoffSummary({
-        phoneNumber,
-        pushName,
-        history: historyForRegion,
-        checkIn: quoteFlowDates.checkIn,
-        checkOut: quoteFlowDates.checkOut,
-      });
+    // Handoff comercial: após cliente confirmar interesse ("Quero fechar", "sim",
+    // "Gostei" etc.), enviar resumo E acionar handoff imediatamente — sem perguntar
+    // "Está tudo correto?". O handoff é idempotente (triggerHandoff reusa o timestamp
+    // existente), então repetir a mensagem não duplica o encaminhamento.
+    const isQuoteApproval = QUOTE_APPROVAL_PATTERN.test(cleanText.trim());
+    if (isExplicitReserve || isConfirmOfSummary || isQuoteApproval) {
+      const summaryReply = buildHandoffSummary({ phoneNumber, pushName, history: historyForRegion, checkIn: quoteFlowDates.checkIn, checkOut: quoteFlowDates.checkOut });
       if (!summaryReply) {
         logInfo('[orchestrator] Handoff blocked: no valid presented quote for current data', { phoneNumber });
         const fallback = 'Preciso confirmar o valor exato antes de encaminhar. Um momento!';
@@ -1088,60 +1094,15 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
         return { type: 'reply', content: fallback };
       }
       appendMessage(phoneNumber, 'assistant', summaryReply);
+      // Sempre aciona: triggerHandoff preserva o triggeredAt original (sem duplicar)
+      // e anula um "Devolver para a IA" anterior — sem isso, um cliente devolvido
+      // que confirma de novo receberia o resumo e ninguém seria notificado.
+      const alreadyConfirmed = !!quoteState.handoffConfirmed;
+      logInfo('[orchestrator] Handoff triggered immediately after summary', { phoneNumber, alreadyConfirmed });
+      markHandoffConfirmed(phoneNumber);
+      await humanDelay();
+      triggerHandoff(phoneNumber, 'resumo_enviado');
       return { type: 'reply', content: summaryReply };
-    }
-
-    // Intenção explícita de reserva → gerar resumo se ainda não viu
-    if (isExplicitReserve) {
-      const summaryAskedYet = historyForRegion.some(
-        (m) => m.role === 'assistant' && /posso\s+encaminhar/i.test(m.content)
-      );
-      if (summaryAskedYet) {
-        logInfo('[orchestrator] Explicit reserve after summary, triggering handoff', { phoneNumber });
-        markHandoffConfirmed(phoneNumber);
-        const reply = 'Perfeito! Já estou encaminhando para nosso especialista confirmar sua reserva. Um momento! ✨';
-        appendMessage(phoneNumber, 'assistant', reply);
-        await humanDelay();
-        triggerHandoff(phoneNumber, 'confirmado_pelo_cliente');
-        return { type: 'reply', content: reply };
-      }
-      logInfo('[orchestrator] Explicit reserve intent after quote, generating handoff summary', { phoneNumber });
-      const summaryReply = buildHandoffSummary({
-        phoneNumber,
-        pushName,
-        history: historyForRegion,
-        checkIn: quoteFlowDates.checkIn,
-        checkOut: quoteFlowDates.checkOut,
-      });
-      if (!summaryReply) {
-        logInfo('[orchestrator] buildHandoffSummary returned null (no valid quote), skipping handoff message', { phoneNumber });
-        const fallback = 'Preciso confirmar o valor exato antes de encaminhar. Um momento!';
-        appendMessage(phoneNumber, 'assistant', fallback);
-        return { type: 'reply', content: fallback };
-      }
-      appendMessage(phoneNumber, 'assistant', summaryReply);
-      return { type: 'reply', content: summaryReply };
-    }
-
-    // Aprovação da cotação ("Gostei", "Ficou bom", "Pode ser"): leva ao resumo
-    // de confirmação em vez de repetir o orçamento. Handoff só depois do resumo.
-    const isQuoteApproval = QUOTE_APPROVAL_PATTERN.test(cleanText.trim());
-    if (isQuoteApproval && !quoteState.handoffConfirmed) {
-      const summaries = historyForRegion.filter((m) => m.role === 'assistant' && /posso\s+encaminhar/i.test(m.content));
-      if (summaries.length === 0) {
-        logInfo('[orchestrator] Quote approved, generating handoff summary', { phoneNumber });
-        const summaryReply = buildHandoffSummary({
-          phoneNumber,
-          pushName,
-          history: historyForRegion,
-          checkIn: quoteFlowDates.checkIn,
-          checkOut: quoteFlowDates.checkOut,
-        });
-        if (summaryReply) {
-          appendMessage(phoneNumber, 'assistant', summaryReply);
-          return { type: 'reply', content: summaryReply };
-        }
-      }
     }
 
     // Confirmação genérica pós-cotação → mantém conversa aberta
@@ -1193,10 +1154,14 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
         if (!result || result.error || result.available == null) {
           return await handoffAfterFailure(phoneNumber, 'falha_consulta_disponibilidade');
         }
+        // Registra os parâmetros consultados ANTES de entregar a lista: sem isso a mensagem
+        // seguinte ("gostei do foguete") cai na LLM porque a disponibilidade parece inexistente.
+        persistResult(phoneNumber, 'availability', { checkIn: finalCheckIn, checkOut: finalCheckOut, guests: qTotal || null, room: selectedRoom ? selectedRoom.name : null, ages: ((confirmState && confirmState.childrenAges) || []).join(',') }, { available: result.available === true, roomCount: result.availableRooms ? result.availableRooms.length : null });
         if (result.available === true) {
-          const located = withAvailabilityLocation(historyForRegion, formatAvailabilityReply(result, finalCheckIn, finalCheckOut, qTotal, selectedRoom), false);
-          appendMessage(phoneNumber, 'assistant', located.content);
-          return { type: 'reply', content: located.content, sendLocationAfterReply: located.sendLocationAfterReply };
+          // 2C.15: endereço/pin só na etapa inicial — a lista de suítes não repete a localização.
+          const reply = formatAvailabilityReply(result, finalCheckIn, finalCheckOut, qTotal, selectedRoom);
+          appendMessage(phoneNumber, 'assistant', reply);
+          return { type: 'reply', content: reply };
         } else {
           const reply = formatAvailabilityReply(result, finalCheckIn, finalCheckOut, qTotal, selectedRoom);
           appendMessage(phoneNumber, 'assistant', reply);
@@ -1243,6 +1208,11 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
 	          return { type: 'reply', content: fallback };
 	        }
 	        appendMessage(phoneNumber, 'assistant', summaryReply);
+	        // 2C.16: resumo e encaminhamento na mesma resposta, sem esperar nova confirmação
+	        // (era o caminho que travava: mandava o resumo e ninguém era notificado).
+	        markHandoffConfirmed(phoneNumber);
+	        await humanDelay();
+	        triggerHandoff(phoneNumber, 'resumo_enviado');
 	        return { type: 'reply', content: summaryReply };
       } else if (!hasDates) {
         logInfo('[orchestrator] No dates found in message or history, asking user', { phoneNumber });
@@ -1345,7 +1315,8 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
       // FALHA REAL: nenhuma suíte/valor inventado — o atendimento humano assume o contato.
       return await handoffAfterFailure(phoneNumber, 'falha_consulta_disponibilidade');
     }
-    const located = withAvailabilityLocation(historyForRegion, formatAvailabilityReply(result, finalCheckIn, finalCheckOut, totalGuests, selectedRoom), false);
+    // 2C.15: a lista de suítes não repete endereço/pin — localização só na etapa inicial.
+    const reply = formatAvailabilityReply(result, finalCheckIn, finalCheckOut, totalGuests, selectedRoom);
     // Registra os parâmetros consultados: sem isso a cotação seguinte repete a consulta
     // à HospedInn com os mesmos dados (e o certo é reaproveitar o que já foi verificado).
     if (result.available === true) {
@@ -1362,8 +1333,7 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
       // à HospedInn com os mesmos dados (e o certo é reaproveitar o que já foi verificado).
       persistResult(phoneNumber, 'availability', { checkIn: finalCheckIn, checkOut: finalCheckOut, guests: totalGuests, room: selectedRoom ? selectedRoom.name : null, ages: ((currentState.childrenAges || []).join(',')) }, { available: true, roomCount: result.availableRooms ? result.availableRooms.length : null });
     }
-    const reply = located.content;
-    const sendLocationAfterReply = located.sendLocationAfterReply;
+    const sendLocationAfterReply = false;
 
     // Divide a resposta em duas mensagens para humanizar: confirmação + recomendações
     const splitPoint = reply.indexOf('\n\n🏡');
@@ -1435,6 +1405,12 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
     if (!forcedResult || forcedResult.error || forcedResult.available == null) {
       return await handoffAfterFailure(phoneNumber, 'falha_consulta_disponibilidade_fallback');
     }
+    // 2C.14: registra a consulta feita aqui. Sem isso, a próxima mensagem reconsulta a HospedInn
+    // com os mesmos parâmetros e o caminho de cotação não reconhece a disponibilidade já obtida.
+    persistResult(phoneNumber, 'availability', {
+      checkIn: blockState.checkIn, checkOut: blockState.checkOut, guests: blockState.adults + (blockState.children || 0),
+      room: blockRoom ? blockRoom.name : null, ages: ((blockState.childrenAges || []).join(','))
+    }, { available: true, roomCount: forcedResult.availableRooms ? forcedResult.availableRooms.length : null });
     const forcedQuote = buildQuoteReply({ history: historyForRegion, checkIn: blockState.checkIn, checkOut: blockState.checkOut, room: blockRoom, state: blockState });
 	    if (forcedQuote && forcedQuote.content) {
 	      appendMessage(phoneNumber, 'assistant', forcedQuote.content);
@@ -1508,9 +1484,12 @@ if (offeredLocationAndAccepted && !locationAlreadySent) {
         if (!promisedResult || promisedResult.error || promisedResult.available == null) {
           return await handoffAfterFailure(phoneNumber, 'falha_consulta_disponibilidade');
         }
-        const promisedLocated = withAvailabilityLocation(historyForRegion, formatAvailabilityReply(promisedResult, promisedValidation.checkIn, promisedValidation.checkOut, promisedGuests), false);
-        appendMessage(phoneNumber, 'assistant', promisedLocated.content);
-        return { type: 'reply', content: promisedLocated.content, sendLocationAfterReply: promisedLocated.sendLocationAfterReply };
+        // Mesmo motivo do caminho de confirmação: a lista entregue aqui precisa ficar registrada,
+        // senão a escolha da suíte na mensagem seguinte não encontra disponibilidade.
+        persistResult(phoneNumber, 'availability', { checkIn: promisedValidation.checkIn, checkOut: promisedValidation.checkOut, guests: promisedGuests, room: null, ages: promisedAges.join(',') }, { available: promisedResult.available === true, roomCount: promisedResult.availableRooms ? promisedResult.availableRooms.length : null });
+        const promisedReply = formatAvailabilityReply(promisedResult, promisedValidation.checkIn, promisedValidation.checkOut, promisedGuests);
+        appendMessage(phoneNumber, 'assistant', promisedReply);
+        return { type: 'reply', content: promisedReply };
       }
     }
   }

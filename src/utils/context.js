@@ -200,8 +200,8 @@ const stmtUpsertState = () => getDb().prepare(`
   VALUES (@phone_number, @stage, @check_in, @check_out, @adults, @children, @children_ages, @selected_room, @last_availability, @last_quote, @updated_at, @region_asked, @region_known, @quote_presented, @quote_generated, @handoff_confirmed)
   ON CONFLICT(phone_number) DO UPDATE SET
     stage = COALESCE(@stage, stage),
-    check_in = @check_in,
-    check_out = @check_out,
+	    check_in = COALESCE(@check_in, check_in),
+	    check_out = COALESCE(@check_out, check_out),
     adults = @adults,
     children = @children,
     children_ages = @children_ages,
@@ -457,11 +457,24 @@ function hydrateStateFromHistory(history) {
   return result;
 }
 
+// Número de teste: sempre inicia onboarding do zero (estado + histórico limpos)
+const TEST_USER_PHONE = '5522999990000';
+
+function isTestUser(phoneNumber) {
+  return phoneNumber === TEST_USER_PHONE;
+}
+
 /**
  * Gets the structured state for a phone number.
  * If no state exists, hydrates from history and persists the result.
+ * Test user always gets a fresh state (auto-reset on every call).
  */
 function getState(phoneNumber) {
+  // Usuário de teste: reset automático a cada chamada para validar onboarding
+  if (isTestUser(phoneNumber)) {
+    clearHistory(phoneNumber);
+  }
+
   const row = stmtGetState().get(phoneNumber);
   if (row) {
     return rowToState(row);

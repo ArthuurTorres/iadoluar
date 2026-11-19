@@ -12,7 +12,162 @@ const { getSettings, updateSettings } = require('./utils/settings');
 const { listHandoffs, resumeAI, triggerHandoff } = require('./utils/handoff');
 const { clearHistory, appendMessage, markQuotePresented } = require('./utils/context');
 const promptHistory = require('./utils/promptHistory');
+const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { parseLines: parseLogLines, summarize: summarizeLogs, CATEGORIES: LOG_CATEGORIES } = require('./utils/logParser');
+
+// ── Descriptografia local via Baileys (fallback quando Evolution falha) ──
+async function decryptAudioLocally(audioMsg) {
+  try {
+    if (!audioMsg.mediaKey || !audioMsg.directPath) {
+      logWarn('[stt] Local decrypt skipped: missing mediaKey or directPath');
+      return null;
+    }
+    const mediaKeyType = typeof audioMsg.mediaKey;
+    const mediaKeyIsBuffer = Buffer.isBuffer(audioMsg.mediaKey);
+    const mediaKeyLen = mediaKeyIsBuffer ? audioMsg.mediaKey.length : (Array.isArray(audioMsg.mediaKey) ? audioMsg.mediaKey.length : 0);
+    const directPathType = typeof audioMsg.directPath;
+    logInfo('[stt] Attempting local decryption via Baileys', {
+      hasMediaKey: !!audioMsg.mediaKey,
+      mediaKeyType,
+      mediaKeyIsBuffer,
+      mediaKeyLen,
+      hasDirectPath: !!audioMsg.directPath,
+      directPathType,
+      mimetype: audioMsg.mimetype
+    });
+    const stream = await downloadContentFromMessage(
+      { mediaKey: audioMsg.mediaKey, directPath: audioMsg.directPath, url: audioMsg.url },
+      'audio'
+    );
+    const chunks = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+    if (buffer.length === 0) {
+      logWarn('[stt] Local decrypt returned empty buffer');
+      return null;
+    }
+    logInfo('[stt] Local decryption succeeded', { bytes: buffer.length });
+    return buffer.toString('base64');
+  } catch (err) {
+    logError('[stt] Local decryption failed', { error: err.message });
+    return null;
+  }
+}
+
+// ── Evolution API: obter mídia descriptografada ─────────────────────
+async function getMediaFromEvolution(messageKey, instanceName) {
+  const apiKey = process.env.EVOLUTION_API_KEY;
+  // Força URL externa da FluxiXY; fallback interno só se variável estiver explicitamente vazia
+  const baseUrl = (process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_URL.trim()) || 'https://api.fluxixy.com';
+  if (!apiKey) {
+    logWarn('[stt] EVOLUTION_API_KEY not configured, cannot fetch decrypted media');
+    return null;
+  }
+  try {
+    const url = `${baseUrl}/chat/getBase64FromMediaMessage/${instanceName}`;
+    logInfo('[stt] Fetching decrypted media from Evolution', { instanceName, hasKey: !!messageKey });
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiKey
+      },
+      body: JSON.stringify({ key: messageKey, message: { audioMessage: true } })
+    });
+    if (!resp.ok) {
+      logWarn('[stt] Evolution getMedia failed', { status: resp.status, url });
+      return null;
+    }
+    const result = await resp.json();
+    const b64 = result.base64 || result.message?.audioMessage?.base64 || result.message?.pttMessage?.base64;
+    if (b64) {
+      logInfo('[stt] Got decrypted media from Evolution', { base64Len: b64.length });
+      return b64;
+    }
+    logWarn('[stt] Evolution response has no base64 field', { keys: Object.keys(result).join(',') });
+    return null;
+  } catch (err) {
+    logError('[stt] Error fetching media from Evolution', { error: err.message });
+    return null;
+  }
+}
+
+// ── Transcrição via URL (fallback quando Evolution falha) ───────────
+async function transcribeAudioByUrl(audioUrl, mimetype = 'audio/ogg') {
+  // Usa Groq Whisper via URL (aceita OGG/Opus nativamente; OpenAI rejeita .enc do WhatsApp)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) {
+    logWarn('[stt] GROQ_API_KEY não configurada para transcrição via URL');
+    return null;
+  }
+  try {
+    logInfo('[stt] Downloading audio from WhatsApp URL', { urlLen: audioUrl.length, mimetype });
+    const audioResp = await fetch(audioUrl);
+    if (!audioResp.ok) {
+      logError('[stt] Failed to download audio from WhatsApp', { status: audioResp.status });
+      return null;
+    }
+    const arrayBuffer = await audioResp.arrayBuffer();
+    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    logInfo('[stt] Audio downloaded, sending to Groq Whisper', { bytes: arrayBuffer.byteLength });
+    // Usa Groq explicitamente via parâmetro provider (sem manipular env global)
+    const result = await transcribeAudioBase64(base64Data, mimetype, 'groq');
+    return result;
+  } catch (err) {
+    logError('[stt] Error in URL-based transcription', { error: err.message });
+    return null;
+  }
+}
+
+// ── OpenAI Whisper STT ──────────────────────────────────────────────
+async function transcribeAudioBase64(base64Data, mimetype = 'audio/ogg', provider = null) {
+  const apiKey = (provider === 'groq' ? process.env.GROQ_API_KEY : null) || (provider === 'openai' ? process.env.OPENAI_API_KEY : null) || process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY;
+  const useOpenAI = provider === 'openai' || (!provider && !!process.env.OPENAI_API_KEY);
+  if (!apiKey) {
+    logWarn('[stt] Nenhuma chave de STT configurada (OPENAI_API_KEY ou GROQ_API_KEY), pulando transcrição');
+    return null;
+  }
+  try {
+    const boundary = '----STTFormBoundary' + Date.now();
+    const mimeMap = { 'audio/mpeg': 'mp3', 'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a' };
+    const baseMime = mimetype.split(';')[0].trim().toLowerCase();
+    const ext = mimeMap[baseMime] || 'ogg';
+    const filename = `audio.${ext}`;
+    const model = useOpenAI ? 'whisper-1' : 'whisper-large-v3-turbo';
+    const header = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimetype}\r\n\r\n`
+    );
+    const footer = Buffer.from(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\n${model}\r\n--${boundary}--\r\n`);
+    const audioBuffer = Buffer.from(base64Data, 'base64');
+    const body = Buffer.concat([header, audioBuffer, footer]);
+    const sttUrl = useOpenAI
+      ? 'https://api.openai.com/v1/audio/transcriptions'
+      : (process.env.GROQ_BASE_URL || 'https://api.groq.com') + '/openai/v1/audio/transcriptions';
+    logInfo('[stt] Sending to STT provider', { provider: useOpenAI ? 'openai' : 'groq', filename, mimetype, audioBytes: audioBuffer.length });
+    const resp = await fetch(sttUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`
+      },
+      body
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      logError('[stt] STT API error', { provider: useOpenAI ? 'openai' : 'groq', status: resp.status, body: errText.substring(0, 200) });
+      return null;
+    }
+    const result = await resp.json();
+    const transcript = (result.text || '').trim();
+    logInfo('[stt] Transcrição concluída', { chars: transcript.length, model: result.model, preview: transcript.substring(0, 80) });
+    return transcript || null;
+  } catch (err) {
+    logError('[stt] Falha na transcrição', { error: err.message });
+    return null;
+  }
+}
 
 const app = express();
 
@@ -95,7 +250,7 @@ app.get('/admin/status', (req, res) => {
 });
 
 // Evolution API webhook receiver
-const evolutionWebhookHandler = (req, res) => {
+const evolutionWebhookHandler = async (req, res) => {
   // Kill switch: if IA is disabled, ack silently without processing
   if (!iaSwitch.isEnabled()) {
     return res.status(200).json({ received: true, ia_disabled: true });
@@ -142,9 +297,67 @@ const evolutionWebhookHandler = (req, res) => {
       text = message.conversation;
     } else if (message.extendedTextMessage?.text) {
       text = message.extendedTextMessage.text;
+    } else if (message.audioMessage || message.pttMessage || message.ephemeralMessage?.message?.audioMessage || message.ephemeralMessage?.message?.pttMessage) {
+      // Audio message — transcribe via STT (supports ephemeral messages)
+      const audioMsg = message.audioMessage || message.pttMessage || message.ephemeralMessage?.message?.audioMessage || message.ephemeralMessage?.message?.pttMessage;
+      const msgType = message.audioMessage ? 'audioMessage' : (message.pttMessage ? 'pttMessage' : 'ephemeralAudio');
+      logInfo('[stt] Audio detected in webhook', { phoneNumber, msgType, hasBase64: !!audioMsg.base64, hasUrl: !!audioMsg.url, mimetype: audioMsg.mimetype });
+      let base64Data = audioMsg.base64;
+      const mimetype = audioMsg.mimetype || 'audio/ogg';
+      // Se base64 não veio diretamente, tenta obter via endpoint da Evolution API (descriptografa o áudio)
+      if (!base64Data) {
+        const instanceName = body?.instance || data?.metadata?.instance || 'triveleads';
+        const messageKey = data.key;
+        if (messageKey) {
+          logInfo('[stt] No inline base64, fetching from Evolution API', { phoneNumber, instanceName });
+          base64Data = await getMediaFromEvolution(messageKey, instanceName);
+        } else {
+          logWarn('[stt] No messageKey available to fetch media', { phoneNumber });
+        }
+      }
+      if (base64Data) {
+        logInfo('[stt] Media obtained, starting transcription', { phoneNumber, mimetype, base64Len: base64Data.length });
+        const transcript = await transcribeAudioBase64(base64Data, mimetype);
+        if (transcript) {
+          text = transcript;
+          logInfo('[stt] Transcript ready for orchestrator', { phoneNumber, chars: transcript.length, preview: transcript.substring(0, 80) });
+        } else {
+          logWarn('[stt] Transcription returned empty, using fallback', { phoneNumber });
+          text = '[audio não transcrito]';
+        }
+      } else {
+        // Fallback 1: descriptografia local via Baileys (usa mediaKey + directPath do webhook)
+        logInfo('[stt] Evolution failed, trying local Baileys decryption', { phoneNumber });
+        base64Data = await decryptAudioLocally(audioMsg);
+        if (base64Data) {
+          logInfo('[stt] Local decrypt succeeded, starting transcription', { phoneNumber, base64Len: base64Data.length });
+          const transcript = await transcribeAudioBase64(base64Data, mimetype);
+          if (transcript) {
+            text = transcript;
+            logInfo('[stt] Transcript ready for orchestrator (local decrypt)', { phoneNumber, chars: transcript.length, preview: transcript.substring(0, 80) });
+          } else {
+            logWarn('[stt] Transcription after local decrypt returned empty', { phoneNumber });
+            text = '[audio não transcrito]';
+          }
+        } else if (audioMsg.url) {
+          // Fallback 2: URL direta (último recurso, geralmente falha por .enc)
+          logInfo('[stt] Local decrypt failed, trying direct URL transcription', { phoneNumber, urlPresent: true });
+          const transcript = await transcribeAudioByUrl(audioMsg.url, mimetype);
+          if (transcript) {
+            text = transcript;
+            logInfo('[stt] URL transcription succeeded', { phoneNumber, chars: transcript.length, preview: transcript.substring(0, 80) });
+          } else {
+            logWarn('[stt] URL transcription also failed', { phoneNumber });
+            text = '[audio não transcrito]';
+          }
+        } else {
+          logWarn('[stt] Audio detected but no base64 obtained', { phoneNumber, msgType });
+          text = '[audio sem base64]';
+        }
+      }
     } else {
-      // Non-text message (audio, image, etc.) — treat as audio hint
-      text = '[audio]';
+      // Other non-text message (image, video, etc.) — only if not audio
+      text = '[mídia]';
     }
 
     if (!text) {
@@ -170,10 +383,14 @@ const evolutionWebhookHandler = (req, res) => {
     const pending = debounceTimers.get(phoneNumber);
     logInfo('[webhook] Scheduling handleMessage', { phoneNumber, pendingParts: pending.parts.length });
     pending.timer = setTimeout(async () => {
-      const batched = debounceTimers.get(phoneNumber);
-      debounceTimers.delete(phoneNumber);
-      if (!batched) return;
-      await enqueueMessage(phoneNumber, batched.parts.join('\n'), pushName);
+      try {
+        const batched = debounceTimers.get(phoneNumber);
+        debounceTimers.delete(phoneNumber);
+        if (!batched) return;
+        await enqueueMessage(phoneNumber, batched.parts.join('\n'), pushName);
+      } catch (err) {
+        logError('[webhook] Error in debounced handleMessage', err.message);
+      }
     }, getSettings().debounceMs);
   } catch (error) {
     logError('[webhook] Error processing payload', error.message);
@@ -458,6 +675,43 @@ app.post('/admin/handoffs', (req, res) => {
     return res.json({ ok: true, phoneNumber: cleaned, humanTakeover: true });
   }
   return res.status(400).json({ error: 'action deve ser "handoff" ou "resume"' });
+});
+
+// Admin: enviar mensagem humana direta para um hóspede
+app.post('/admin/reply/:phone', async (req, res) => {
+  const token = req.body?.token || req.headers['x-admin-token'] || (req.headers['authorization'] || '').replace('Bearer ', '');
+  if (!isValidAdminToken(token)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  const phone = String(req.params.phone || '').replace(/\D/g, '');
+  if (!/^\d{10,15}$/.test(phone)) {
+    return res.status(400).json({ error: 'phoneNumber inválido.' });
+  }
+  const { text } = req.body || {};
+  const msg = String(text || '').trim();
+  if (!msg) {
+    return res.status(400).json({ error: 'text é obrigatório.' });
+  }
+  try {
+    // Garante que a conversa está em modo humano enquanto o atendente responde
+    triggerHandoff(phone, 'manual_painel');
+    await sendText(phone, msg);
+    // Persiste a mensagem do humano no histórico para aparecer no painel
+    try {
+      const Database = require('better-sqlite3');
+      const DB_PATH = path.join(__dirname, '..', 'data', 'conversations.db');
+      const db = new Database(DB_PATH);
+      db.prepare('INSERT INTO conversations (phone_number, role, content, timestamp) VALUES (?, ?, ?, ?)').run(phone, 'assistant', msg, Date.now());
+      db.close();
+    } catch (dbErr) {
+      logWarn('[admin-reply] Falha ao persistir mensagem humana', dbErr.message);
+    }
+    logInfo('[admin-reply] Mensagem enviada', { phone, chars: msg.length });
+    res.json({ ok: true, phone, sent: true });
+  } catch (err) {
+    logError('[admin-reply] Falha ao enviar mensagem', err.message);
+    res.status(500).json({ error: 'Falha ao enviar mensagem.', detail: err.message });
+  }
 });
 
 // Admin: list all conversations (grouped by phone, with last message preview)

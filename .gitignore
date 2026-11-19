@@ -4,3 +4,4 @@ data/*.json
 data/prompt-history/
 logs/
 *.log
+data/test-tmp/groq_env_line.txt

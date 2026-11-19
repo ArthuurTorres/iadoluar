@@ -853,7 +853,7 @@ this.classList.add('active');convState.filter=this.dataset.convFilter;renderConv
 });
 })();
 function showConversation(phone,humanTakeover){
-currentConversation=phone;currentHumanTakeover=!!humanTakeover;
+currentConversation=phone;currentHumanTakeover=!!humanTakeover;setActiveReplyPhone(phone);
 $('conv-detail-empty').style.display='none';
 $('conv-messages').style.display='flex';
 $('conv-header').style.display='flex';
@@ -1001,7 +1001,7 @@ function loadPromptEditor(token){
 $('prompt-feedback').textContent='Carregando...';$('prompt-feedback').className='feedback';
 api('/admin/prompt').then(function(d){
 var content=d&&d.prompt?d.prompt:'';
-$('prompt-textarea').value=content;originalPrompt=content;
+$('prompt-textarea').value=content;originalPrompt=$('prompt-textarea').value;
 $('prompt-feedback').textContent='Prompt carregado';$('prompt-feedback').className='feedback success';
 paintEditor();renderSections();
 loadPromptHistory();
@@ -1445,6 +1445,21 @@ $('btn-test-llm').addEventListener('click',function(){
   }).catch(function(e){$('llm-feedback').textContent='Erro: '+e.message;$('llm-feedback').className='feedback error'})
   .finally(function(){$('btn-test-llm').disabled=false});
 });
+// === RESPOSTA HUMANA DIRETA ===
+var currentReplyPhone=null;
+function setActiveReplyPhone(phone){currentReplyPhone=phone;var inp=$('conv-reply');if(inp){inp.disabled=!phone;inp.placeholder=phone?'Escreva uma resposta para '+phone+'...':'Selecione um hóspede para responder';}}
+$('btn-send-reply').addEventListener('click',function(){
+  if(!currentReplyPhone){alert('Selecione um hóspede primeiro.');return;}
+  var inp=$('conv-reply');var msg=(inp&&inp.value||'').trim();
+  if(!msg){alert('Digite uma mensagem.');return;}
+  this.disabled=true;inp.disabled=true;
+  api('/admin/reply/'+encodeURIComponent(currentReplyPhone),{method:'POST',body:{text:msg}}).then(function(r){
+    if(r&&r.ok){inp.value='';showConversation(currentReplyPhone,true);}
+    else{alert('Erro ao enviar: '+(r&&r.error||'desconhecido'));}
+  }).catch(function(e){alert('Erro ao enviar: '+e.message);})
+  .finally(function(){$('btn-send-reply').disabled=false;if(inp)inp.disabled=false;});
+});
+$('conv-reply').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('btn-send-reply').click();}});
 $('btn-refresh-llm-history').addEventListener('click',loadLlmHistory);
 // Carrega config LLM quando a tela é aberta
 var origShowScreen=showScreen;

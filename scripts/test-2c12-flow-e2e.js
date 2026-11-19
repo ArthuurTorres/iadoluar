@@ -203,6 +203,12 @@ async function main() {
     assert.ok(state.checkIn >= now, `check_in ${state.checkIn} está no passado (hoje ${now})`);
   }) && ok;
   ok = check('F1 estado preserva os 4 adultos', () => assert.strictEqual(state.adults, 4)) && ok;
+  // 2C.14: a disponibilidade entregue tem de ficar registrada. Sem isso, a mensagem
+  // seguinte ("gostei do foguete") não encontra lastAvailability e cai na LLM.
+  ok = check('F1 disponibilidade entregue fica persistida (2C.14)', () => {
+    assert.ok(state.lastAvailability, 'lastAvailability ausente — a próxima mensagem cairia na LLM');
+    assert.ok(state.lastAvailability.params && state.lastAvailability.params.checkIn, 'lastAvailability sem as datas consultadas');
+  }) && ok;
   ok = check('F2 cotação apresentada ao cliente', () => {
     assert.ok(events.some((e) => /R\$/.test(e)), 'nenhuma mensagem com valor');
   }) && ok;
@@ -221,25 +227,26 @@ async function main() {
     assert.strictEqual(state.handoffConfirmed, false, 'handoff confirmado sem confirmação do cliente');
   }) && ok;
 
-  // F6: aprovação do orçamento ("Gostei") leva ao resumo de confirmação,
-  // sem repetir a cotação e sem handoff antes de o cliente confirmar o resumo.
+  // F6: aprovação do orçamento ("Gostei") envia o resumo E aciona o handoff na
+  // mesma resposta — sem repetir a cotação e sem esperar o cliente confirmar o resumo.
   // Assinatura da cotação: a linha de noites. O resumo também tem "R$" (Valor total),
   // então contar por R$ confundiria cotação com resumo.
   const quoteSignature = /🌙/;
+  const summarySignature = /Em breve, nosso especialista/i;
   const quotesAntes = events.filter((e) => quoteSignature.test(e)).length;
-  const summariesAntes = events.filter((e) => /posso\s+encaminhar/i.test(e)).length;
+  const summariesAntes = events.filter((e) => summarySignature.test(e)).length;
   await webhook(phone, 'Gostei');
   await sleep(2200);
   const quotesDepois = events.filter((e) => quoteSignature.test(e)).length;
-  const summariesDepois = events.filter((e) => /posso\s+encaminhar/i.test(e)).length;
+  const summariesDepois = events.filter((e) => summarySignature.test(e)).length;
   ok = check('F6 "Gostei" após a cotação não repete o orçamento', () => {
     assert.strictEqual(quotesDepois, quotesAntes, `cotação repetida (${quotesAntes} → ${quotesDepois})`);
   }) && ok;
-  ok = check('F6 "Gostei" após a cotação leva ao resumo de confirmação', () => {
-    assert.ok(summariesDepois > summariesAntes, 'nenhum resumo de confirmação foi enviado');
+  ok = check('F6 "Gostei" após a cotação envia o resumo de handoff', () => {
+    assert.ok(summariesDepois > summariesAntes, 'nenhum resumo de handoff foi enviado');
   }) && ok;
-  ok = check('F6 handoff não ocorre antes de o cliente confirmar o resumo', () => {
-    assert.strictEqual(getState(phone).handoffConfirmed, false, 'handoff disparado na aprovação');
+  ok = check('F6 handoff é acionado na mesma resposta do resumo', () => {
+    assert.strictEqual(getState(phone).handoffConfirmed, true, 'o resumo saiu mas o handoff não foi registrado');
   }) && ok;
 
   // F5: pedido explícito de humano deve passar na hora.

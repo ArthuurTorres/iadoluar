@@ -13,11 +13,9 @@ services:
       - ./src:/app/src
       - ./public:/app/public
       - /app/node_modules
-    # Para comunicar com a Evolution API via rede interna Docker,
-    # descomente as linhas abaixo e ajuste EVOLUTION_API_URL para http://evolution-api:8080
-    # networks:
-    #   - evo-network
+    networks:
+      - ia-sdr-evo-net
 
-# networks:
-#   evo-network:
-#     external: true
+networks:
+  ia-sdr-evo-net:
+    external: true

@@ -1,0 +1,138 @@
+[2026-11-11T12:37:34.394Z] [INFO] [prompt-history] Versão 20*****1111T12*****4391-85f01f1f registrada (admin, 26217 chars)
+[2026-11-11T12:37:34.394Z] [INFO] [admin] System prompt atualizado via painel (26217 chars, versão 20*****1111T12*****4391-85f01f1f)
+[2026-11-11T12:37:52.492Z] [INFO] [webhook] Received POST {}
+[2026-11-11T12:37:52.492Z] [WARN] [webhook] No data field in payload {}
+Restarting 'src/server.js'
+[2026-11-11T14:56:00.663Z] [INFO] [prompt-history] Versão 20*****1111T14*****0661-6f194027 registrada (boot, 26324 chars)
+[2026-11-11T14:56:00.665Z] [INFO] [prompt-history] Versão inicial registrada: 20*****1111T14*****0661-6f194027
+[2026-11-11T14:56:00.680Z] [INFO] [server] IA SDR Pousada running on port 4000
+[server] IA SDR Pousada running on port 4000
+[server] Health check: http://localhost:4000/health
+[server] Admin panel: http://localhost:4000/admin
+[2026-11-11T14:57:56.412Z] [INFO] [server] IA SDR Pousada running on port 4000
+[server] IA SDR Pousada running on port 4000
+[server] Health check: http://localhost:4000/health
+[server] Admin panel: http://localhost:4000/admin
+[2026-11-11T14:59:31.671Z] [INFO] [admin] Todas as conversas e handoffs foram apagados via painel
+[2026-11-11T15:00:30.109Z] [INFO] [webhook] Received POST {"event":"messages.upsert","instance":"triveleads","data":{"key":{"remoteJid":"55*****2626@s.whatsapp.net","remoteJidAlt":"55*****2626@s.whatsapp.net","fromMe":false,"id":"3EB020FB14D4DF31FF7B5A","participant":"","addressingMode":"lid"},"pushName":"Arthur Torres","status":"DELIVERY_ACK","message":{"messageContextInfo":{"threadId":[],"deviceListMetadata":{"senderKeyIndexes":[],"recipientKeyIndexes":[],"senderKeyHash":{"0":113,"1":154,"2":22,"3":211,"4":170,"5":41,"6":9,"7":54,"8":28,"9":228},
+[2026-11-11T15:00:30.110Z] [INFO] [webhook] Extracted text {"phoneNumber":"55*****2626","text":"oi"}
+[2026-11-11T15:00:30.110Z] [INFO] [webhook] Extracted pushName {"phoneNumber":"55*****2626","pushName":"Arthur Torres"}
+[2026-11-11T15:00:30.111Z] [INFO] [webhook] Scheduling handleMessage {"phoneNumber":"55*****2626","pendingParts":1}
+[2026-11-11T15:00:30.914Z] [INFO] [handler] Starting processMessage {"phoneNumber":"55*****2626","text":"oi","pushName":"Arthur Torres"}
+[2026-11-11T15:00:30.920Z] [INFO] [orchestrator] processMessage called {"phoneNumber":"55*****2626","text":"oi","pushName":"Arthur Torres"}
+[2026-11-11T15:00:30.944Z] [INFO] [orchestrator] Falling through to LLM path {"phoneNumber":"55*****2626"}
+[2026-11-11T15:00:30.946Z] [INFO] [orchestrator] Calling LLM API {"phoneNumber":"55*****2626","messageCount":4}
+[2026-11-11T15:00:34.417Z] [INFO] [orchestrator] LLM API returned {"phoneNumber":"55*****2626","responseLength":144,"isFallback":false}
+[2026-11-11T15:00:36.420Z] [INFO] [orchestrator] processMessage returning {"phoneNumber":"55*****2626","resultType":"reply","content":"Olá, Arthur! Seja muito bem-vindo ao Casarão do Luar 🏡 Estou aqui para ajudar você a encontrar a es"}
+[2026-11-11T15:00:36.421Z] [INFO] [handler] processMessage returned {"phoneNumber":"55*****2626","resultType":"reply","content":"Olá, Arthur! Seja muito bem-vindo ao Casarão do Luar 🏡 Estou aqui para ajudar você a encontrar a es"}
+[evolution] sendTyping success {"phoneNumber":"5522997822626"}
+[2026-11-11T15:00:40.293Z] [INFO] [handler] Sending reply via Evolution {"phoneNumber":"55*****2626","content":"Olá, Arthur! Seja muito bem-vindo ao Casarão do Luar 🏡 Estou aqui para ajudar você a encontrar a es"}
+[evolution] sendText called {"phoneNumber":"5522997822626","text":"Olá, Arthur! Seja muito bem-vindo ao Casarão do Luar 🏡 Estou aqui para ajudar você a encontrar a es"}
+[evolution] sendText success {"phoneNumber":"5522997822626","status":201}
+[2026-11-11T15:00:40.777Z] [INFO] [handler] Reply sent successfully {"phoneNumber":"55*****2626"}
+[2026-11-11T15:00:46.663Z] [INFO] [webhook] Received POST {"event":"messages.upsert","instance":"triveleads","data":{"key":{"remoteJid":"55*****2626@s.whatsapp.net","remoteJidAlt":"55*****2626@s.whatsapp.net","fromMe":false,"id":"3EB0320CEA62AAC270A825","participant":"","addressingMode":"lid"},"pushName":"Arthur Torres","status":"DELIVERY_ACK","message":{"messageContextInfo":{"threadId":[],"deviceListMetadata":{"senderKeyIndexes":[],"recipientKeyIndexes":[],"senderKeyHash":{"0":113,"1":154,"2":22,"3":211,"4":170,"5":41,"6":9,"7":54,"8":28,"9":228},
+[2026-11-11T15:00:46.663Z] [INFO] [webhook] Extracted text {"phoneNumber":"55*****2626","text":"Gostaria de verificar disponibilidade"}
+[2026-11-11T15:00:46.663Z] [INFO] [webhook] Extracted pushName {"phoneNumber":"55*****2626","pushName":"Arthur Torres"}
+[2026-11-11T15:00:46.663Z] [INFO] [webhook] Scheduling handleMessage {"phoneNumber":"55*****2626","pendingParts":1}
+[2026-11-11T15:00:47.463Z] [INFO] [handler] Starting processMessage {"phoneNumber":"55*****2626","text":"Gostaria de verificar disponibilidade","pushName":"Arthur Torres"}
+[2026-11-11T15:00:47.464Z] [INFO] [orchestrator] processMessage called {"phoneNumber":"55*****2626","text":"Gostaria de verificar disponibilidade","pushName":"Arthur Torres"}
+[2026-11-11T15:00:47.470Z] [INFO] [orchestrator] Region gate: asking before availability {"phoneNumber":"55*****2626"}
+[2026-11-11T15:00:47.472Z] [INFO] [handler] processMessage returned {"phoneNumber":"55*****2626","resultType":"reply","content":"Antes de verificar a disponibilidade, me diz uma coisa: você já conhece nossa região aqui em Cabo Fr"}
+[evolution] sendTyping success {"phoneNumber":"5522997822626"}
+[2026-11-11T15:00:50.532Z] [INFO] [handler] Sending reply via Evolution {"phoneNumber":"55*****2626","content":"Antes de verificar a disponibilidade, me diz uma coisa: você já conhece nossa região aqui em Cabo Fr"}
+[evolution] sendText called {"phoneNumber":"5522997822626","text":"Antes de verificar a disponibilidade, me diz uma coisa: você já conhece nossa região aqui em Cabo Fr"}
+[evolution] sendText success {"phoneNumber":"5522997822626","status":201}
+[2026-11-11T15:00:51.024Z] [INFO] [handler] Reply sent successfully {"phoneNumber":"55*****2626"}
+[2026-11-11T15:06:26.249Z] [INFO] [webhook] Received POST {"event":"messages.upsert","instance":"triveleads","data":{"key":{"remoteJid":"55*****2626@s.whatsapp.net","remoteJidAlt":"55*****2626@s.whatsapp.net","fromMe":false,"id":"3EB09*****7869D53B2162A8C","participant":"","addressingMode":"lid"},"pushName":"Arthur Torres","status":"DELIVERY_ACK","message":{"messageContextInfo":{"threadId":[],"deviceListMetadata":{"senderKeyIndexes":[],"recipientKeyIndexes":[],"senderKeyHash":{"0":113,"1":154,"2":22,"3":211,"4":170,"5":41,"6":9,"7":54,"8":28,"9":228},
+[2026-11-11T15:06:26.249Z] [INFO] [webhook] Extracted text {"phoneNumber":"55*****2626","text":"conheço sim"}
+[2026-11-11T15:06:26.249Z] [INFO] [webhook] Extracted pushName {"phoneNumber":"55*****2626","pushName":"Arthur Torres"}
+[2026-11-11T15:06:26.249Z] [INFO] [webhook] Scheduling handleMessage {"phoneNumber":"55*****2626","pendingParts":1}
+[2026-11-11T15:06:27.050Z] [INFO] [handler] Starting processMessage {"phoneNumber":"55*****2626","text":"conheço sim","pushName":"Arthur Torres"}
+[2026-11-11T15:06:27.050Z] [INFO] [orchestrator] processMessage called {"phoneNumber":"55*****2626","text":"conheço sim","pushName":"Arthur Torres"}
+[2026-11-11T15:06:27.053Z] [INFO] [orchestrator] Falling through to LLM path {"phoneNumber":"55*****2626"}
+[2026-11-11T15:06:27.054Z] [INFO] [orchestrator] Calling LLM API {"phoneNumber":"55*****2626","messageCount":8}
+[2026-11-11T15:06:28.587Z] [INFO] [orchestrator] LLM API returned {"phoneNumber":"55*****2626","responseLength":161,"isFallback":false}
+[2026-11-11T15:06:28.588Z] [INFO] [orchestrator] P4: blocking empty promise from LLM {"phoneNumber":"55*****2626","hasDates":false,"hasGuests":false}
+[2026-11-11T15:06:28.589Z] [INFO] [handler] processMessage returned {"phoneNumber":"55*****2626","resultType":"reply","content":"Para eu verificar a disponibilidade, preciso saber as datas e quantas pessoas vão se hospedar. Pode "}
+[evolution] sendTyping success {"phoneNumber":"5522997822626"}
+[2026-11-11T15:06:31.746Z] [INFO] [handler] Sending reply via Evolution {"phoneNumber":"55*****2626","content":"Para eu verificar a disponibilidade, preciso saber as datas e quantas pessoas vão se hospedar. Pode "}
+[evolution] sendText called {"phoneNumber":"5522997822626","text":"Para eu verificar a disponibilidade, preciso saber as datas e quantas pessoas vão se hospedar. Pode "}
+[evolution] sendText success {"phoneNumber":"5522997822626","status":201}
+[2026-11-11T15:06:32.187Z] [INFO] [handler] Reply sent successfully {"phoneNumber":"55*****2626"}
+[2026-11-11T15:06:39.997Z] [INFO] [webhook] Received POST {"event":"messages.upsert","instance":"triveleads","data":{"key":{"remoteJid":"55*****2626@s.whatsapp.net","remoteJidAlt":"55*****2626@s.whatsapp.net","fromMe":false,"id":"3EB022E677E0E650B44000","participant":"","addressingMode":"lid"},"pushName":"Arthur Torres","status":"DELIVERY_ACK","message":{"messageContextInfo":{"threadId":[],"deviceListMetadata":{"senderKeyIndexes":[],"recipientKeyIndexes":[],"senderKeyHash":{"0":113,"1":154,"2":22,"3":211,"4":170,"5":41,"6":9,"7":54,"8":28,"9":228},
+[2026-11-11T15:06:39.998Z] [INFO] [webhook] Extracted text {"phoneNumber":"55*****2626","text":"4 pessoas"}
+[2026-11-11T15:06:39.998Z] [INFO] [webhook] Extracted pushName {"phoneNumber":"55*****2626","pushName":"Arthur Torres"}
+[2026-11-11T15:06:39.998Z] [INFO] [webhook] Scheduling handleMessage {"phoneNumber":"55*****2626","pendingParts":1}
+[2026-11-11T15:06:40.800Z] [INFO] [handler] Starting processMessage {"phoneNumber":"55*****2626","text":"4 pessoas","pushName":"Arthur Torres"}
+[2026-11-11T15:06:40.800Z] [INFO] [orchestrator] processMessage called {"phoneNumber":"55*****2626","text":"4 pessoas","pushName":"Arthur Torres"}
+[2026-11-11T15:06:40.804Z] [INFO] [orchestrator] Availability intent detected {"phoneNumber":"55*****2626","hasDates":false,"isConfirmation":false}
+[2026-11-11T15:06:40.805Z] [INFO] [orchestrator] No dates found in message or history, asking user {"phoneNumber":"55*****2626"}
+[2026-11-11T15:06:40.806Z] [INFO] [handler] processMessage returned {"phoneNumber":"55*****2626","resultType":"reply","content":"Sem problema! Para eu te ajudar melhor, você já tem um mês ou período em mente, ou suas datas são fl"}
+[evolution] sendTyping success {"phoneNumber":"5522997822626"}
+[2026-11-11T15:06:43.851Z] [INFO] [handler] Sending reply via Evolution {"phoneNumber":"55*****2626","content":"Sem problema! Para eu te ajudar melhor, você já tem um mês ou período em mente, ou suas datas são fl"}
+[evolution] sendText called {"phoneNumber":"5522997822626","text":"Sem problema! Para eu te ajudar melhor, você já tem um mês ou período em mente, ou suas datas são fl"}
+[evolution] sendText success {"phoneNumber":"5522997822626","status":201}
+[2026-11-11T15:06:44.289Z] [INFO] [handler] Reply sent successfully {"phoneNumber":"55*****2626"}
+[2026-11-11T15:06:51.171Z] [INFO] [webhook] Received POST {"event":"messages.upsert","instance":"triveleads","data":{"key":{"remoteJid":"55*****2626@s.whatsapp.net","remoteJidAlt":"55*****2626@s.whatsapp.net","fromMe":false,"id":"3EB03F977E12263B57CA7C","participant":"","addressingMode":"lid"},"pushName":"Arthur Torres","status":"DELIVERY_ACK","message":{"messageContextInfo":{"threadId":[],"deviceListMetadata":{"senderKeyIndexes":[],"recipientKeyIndexes":[],"senderKeyHash":{"0":113,"1":154,"2":22,"3":211,"4":170,"5":41,"6":9,"7":54,"8":28,"9":228},
+[2026-11-11T15:06:51.171Z] [INFO] [webhook] Extracted text {"phoneNumber":"55*****2626","text":"janeiro"}
+[2026-11-11T15:06:51.171Z] [INFO] [webhook] Extracted pushName {"phoneNumber":"55*****2626","pushName":"Arthur Torres"}
+[2026-11-11T15:06:51.171Z] [INFO] [webhook] Scheduling handleMessage {"phoneNumber":"55*****2626","pendingParts":1}
+[2026-11-11T15:06:51.972Z] [INFO] [handler] Starting processMessage {"phoneNumber":"55*****2626","text":"janeiro","pushName":"Arthur Torres"}
+[2026-11-11T15:06:51.973Z] [INFO] [orchestrator] processMessage called {"phoneNumber":"55*****2626","text":"janeiro","pushName":"Arthur Torres"}
+[2026-11-11T15:06:51.975Z] [INFO] [orchestrator] Month-only message detected, asking for days {"phoneNumber":"55*****2626","month":"janeiro"}
+[2026-11-11T15:06:51.975Z] [INFO] [handler] processMessage returned {"phoneNumber":"55*****2626","resultType":"reply","content":"Perfeito, Janeiro! Quais dias você está pensando? Pode me dizer o período (ex: \"5 a 10\") que eu veri"}
+[evolution] sendTyping success {"phoneNumber":"5522997822626"}
+[2026-11-11T15:06:55.024Z] [INFO] [handler] Sending reply via Evolution {"phoneNumber":"55*****2626","content":"Perfeito, Janeiro! Quais dias você está pensando? Pode me dizer o período (ex: \"5 a 10\") que eu veri"}
+[evolution] sendText called {"phoneNumber":"5522997822626","text":"Perfeito, Janeiro! Quais dias você está pensando? Pode me dizer o período (ex: \"5 a 10\") que eu veri"}
+[evolution] sendText success {"phoneNumber":"5522997822626","status":201}
+[2026-11-11T15:06:55.475Z] [INFO] [handler] Reply sent successfully {"phoneNumber":"55*****2626"}
+[2026-11-11T15:06:59.590Z] [INFO] [webhook] Received POST {"event":"messages.upsert","instance":"triveleads","data":{"key":{"remoteJid":"55*****2626@s.whatsapp.net","remoteJidAlt":"55*****2626@s.whatsapp.net","fromMe":false,"id":"3EB0F7B357270A6CEEF75D","participant":"","addressingMode":"lid"},"pushName":"Arthur Torres","status":"DELIVERY_ACK","message":{"messageContextInfo":{"threadId":[],"deviceListMetadata":{"senderKeyIndexes":[],"recipientKeyIndexes":[],"senderKeyHash":{"0":113,"1":154,"2":22,"3":211,"4":170,"5":41,"6":9,"7":54,"8":28,"9":228},
+[2026-11-11T15:06:59.590Z] [INFO] [webhook] Extracted text {"phoneNumber":"55*****2626","text":"5 a 10"}
+[2026-11-11T15:06:59.590Z] [INFO] [webhook] Extracted pushName {"phoneNumber":"55*****2626","pushName":"Arthur Torres"}
+[2026-11-11T15:06:59.590Z] [INFO] [webhook] Scheduling handleMessage {"phoneNumber":"55*****2626","pendingParts":1}
+[2026-11-11T15:07:00.392Z] [INFO] [handler] Starting processMessage {"phoneNumber":"55*****2626","text":"5 a 10","pushName":"Arthur Torres"}
+[2026-11-11T15:07:00.392Z] [INFO] [orchestrator] processMessage called {"phoneNumber":"55*****2626","text":"5 a 10","pushName":"Arthur Torres"}
+[2026-11-11T15:07:00.396Z] [INFO] [orchestrator] Short date range resolved using month from conversation {"phoneNumber":"55*****2626","checkIn":"2026-01-05","checkOut":"2026-01-10"}
+[2026-11-11T15:07:00.397Z] [INFO] [orchestrator] Availability intent detected {"phoneNumber":"55*****2626","hasDates":true,"isConfirmation":false}
+[2026-11-11T15:07:00.397Z] [INFO] [orchestrator] Dates extracted {"phoneNumber":"55*****2626","checkIn":"2026-01-05","checkOut":"2026-01-10"}
+[2026-11-11T15:07:00.398Z] [INFO] [orchestrator] Dates adjusted to next year (was in past) {"originalCheckIn":"2026-01-05","newCheckIn":"2027-01-05"}
+[2026-11-11T15:07:00.400Z] [INFO] [orchestrator] Guest count without composition, confirming children {"phoneNumber":"55*****2626"}
+[2026-11-11T15:07:00.402Z] [INFO] [handler] processMessage returned {"phoneNumber":"55*****2626","resultType":"reply","content":"Combinado, 4 pessoas. Só me confirma: o grupo é todo de adultos ou tem criança junto?"}
+[evolution] sendTyping success {"phoneNumber":"5522997822626"}
+[2026-11-11T15:07:03.444Z] [INFO] [handler] Sending reply via Evolution {"phoneNumber":"55*****2626","content":"Combinado, 4 pessoas. Só me confirma: o grupo é todo de adultos ou tem criança junto?"}
+[evolution] sendText called {"phoneNumber":"5522997822626","text":"Combinado, 4 pessoas. Só me confirma: o grupo é todo de adultos ou tem criança junto?"}
+[evolution] sendText success {"phoneNumber":"5522997822626","status":201}
+[2026-11-11T15:07:03.903Z] [INFO] [handler] Reply sent successfully {"phoneNumber":"55*****2626"}
+[2026-11-11T15:07:10.589Z] [INFO] [webhook] Received POST {"event":"messages.upsert","instance":"triveleads","data":{"key":{"remoteJid":"55*****2626@s.whatsapp.net","remoteJidAlt":"55*****2626@s.whatsapp.net","fromMe":false,"id":"3EB0116A52*****8343E6A0C7C","participant":"","addressingMode":"lid"},"pushName":"Arthur Torres","status":"DELIVERY_ACK","message":{"messageContextInfo":{"threadId":[],"deviceListMetadata":{"senderKeyIndexes":[],"recipientKeyIndexes":[],"senderKeyHash":{"0":113,"1":154,"2":22,"3":211,"4":170,"5":41,"6":9,"7":54,"8":28,"9":228},
+[2026-11-11T15:07:10.589Z] [INFO] [webhook] Extracted text {"phoneNumber":"55*****2626","text":"adultos somente"}
+[2026-11-11T15:07:10.589Z] [INFO] [webhook] Extracted pushName {"phoneNumber":"55*****2626","pushName":"Arthur Torres"}
+[2026-11-11T15:07:10.589Z] [INFO] [webhook] Scheduling handleMessage {"phoneNumber":"55*****2626","pendingParts":1}
+[2026-11-11T15:07:11.391Z] [INFO] [handler] Starting processMessage {"phoneNumber":"55*****2626","text":"adultos somente","pushName":"Arthur Torres"}
+[2026-11-11T15:07:11.392Z] [INFO] [orchestrator] processMessage called {"phoneNumber":"55*****2626","text":"adultos somente","pushName":"Arthur Torres"}
+[2026-11-11T15:07:11.394Z] [INFO] [orchestrator] Falling through to LLM path {"phoneNumber":"55*****2626"}
+[2026-11-11T15:07:11.394Z] [INFO] [orchestrator] Calling LLM API {"phoneNumber":"55*****2626","messageCount":16}
+[2026-11-11T15:07:13.023Z] [INFO] [orchestrator] LLM API returned {"phoneNumber":"55*****2626","responseLength":137,"isFallback":false}
+[2026-11-11T15:07:13.024Z] [INFO] [orchestrator] P4: blocking empty promise from LLM {"phoneNumber":"55*****2626","hasDates":false,"hasGuests":true}
+[2026-11-11T15:07:13.024Z] [INFO] [handler] processMessage returned {"phoneNumber":"55*****2626","resultType":"reply","content":"Para eu verificar a disponibilidade, preciso saber as datas. Pode me informar?"}
+[evolution] sendTyping success {"phoneNumber":"5522997822626"}
+[2026-11-11T15:07:16.199Z] [INFO] [handler] Sending reply via Evolution {"phoneNumber":"55*****2626","content":"Para eu verificar a disponibilidade, preciso saber as datas. Pode me informar?"}
+[evolution] sendText called {"phoneNumber":"5522997822626","text":"Para eu verificar a disponibilidade, preciso saber as datas. Pode me informar?"}
+[evolution] sendText success {"phoneNumber":"5522997822626","status":201}
+[2026-11-11T15:07:16.645Z] [INFO] [handler] Reply sent successfully {"phoneNumber":"55*****2626"}
+[2026-11-11T15:07:21.826Z] [INFO] [webhook] Received POST {"event":"messages.upsert","instance":"triveleads","data":{"key":{"remoteJid":"55*****2626@s.whatsapp.net","remoteJidAlt":"55*****2626@s.whatsapp.net","fromMe":false,"id":"3EB0644AA4856C87*****1631","participant":"","addressingMode":"lid"},"pushName":"Arthur Torres","status":"DELIVERY_ACK","message":{"messageContextInfo":{"threadId":[],"deviceListMetadata":{"senderKeyIndexes":[],"recipientKeyIndexes":[],"senderKeyHash":{"0":113,"1":154,"2":22,"3":211,"4":170,"5":41,"6":9,"7":54,"8":28,"9":228},
+[2026-11-11T15:07:21.826Z] [INFO] [webhook] Extracted text {"phoneNumber":"55*****2626","text":"5 a 10 já foi falado"}
+[2026-11-11T15:07:21.826Z] [INFO] [webhook] Extracted pushName {"phoneNumber":"55*****2626","pushName":"Arthur Torres"}
+[2026-11-11T15:07:21.826Z] [INFO] [webhook] Scheduling handleMessage {"phoneNumber":"55*****2626","pendingParts":1}
+[2026-11-11T15:07:22.627Z] [INFO] [handler] Starting processMessage {"phoneNumber":"55*****2626","text":"5 a 10 já foi falado","pushName":"Arthur Torres"}
+[2026-11-11T15:07:22.628Z] [INFO] [orchestrator] processMessage called {"phoneNumber":"55*****2626","text":"5 a 10 já foi falado","pushName":"Arthur Torres"}
+[2026-11-11T15:07:22.630Z] [INFO] [orchestrator] Falling through to LLM path {"phoneNumber":"55*****2626"}
+[2026-11-11T15:07:22.630Z] [INFO] [orchestrator] Calling LLM API {"phoneNumber":"55*****2626","messageCount":18}
+[2026-11-11T15:07:24.229Z] [INFO] [orchestrator] LLM API returned {"phoneNumber":"55*****2626","responseLength":148,"isFallback":false}
+[2026-11-11T15:07:24.230Z] [INFO] [orchestrator] P4: blocking empty promise from LLM {"phoneNumber":"55*****2626","hasDates":false,"hasGuests":true}
+[2026-11-11T15:07:24.230Z] [INFO] [handler] processMessage returned {"phoneNumber":"55*****2626","resultType":"reply","content":"Para eu verificar a disponibilidade, preciso saber as datas. Pode me informar?"}
+[evolution] sendTyping success {"phoneNumber":"5522997822626"}
+[2026-11-11T15:07:27.378Z] [INFO] [handler] Sending reply via Evolution {"phoneNumber":"55*****2626","content":"Para eu verificar a disponibilidade, preciso saber as datas. Pode me informar?"}
+[evolution] sendText called {"phoneNumber":"5522997822626","text":"Para eu verificar a disponibilidade, preciso saber as datas. Pode me informar?"}
+[evolution] sendText success {"phoneNumber":"5522997822626","status":201}
+[2026-11-11T15:07:27.814Z] [INFO] [handler] Reply sent successfully {"phoneNumber":"55*****2626"}
+[2026-11-11T15:07:32.923Z] [INFO] [switch] IA DISABLED at 2026-11-11T15:07:32.922Z

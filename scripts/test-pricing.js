@@ -305,7 +305,8 @@ async function main() {
     assert.ok(/Valor total: R\$ 2\.699,50/.test(summaryAll), `valor ausente em: ${summaryAll}`);
   });
   check('resumo mostra a suíte escolhida', () => assert.ok(/Suíte: Peró/.test(summaryAll)));
-  check('resumo pergunta se pode encaminhar', () => assert.ok(/Posso encaminhar/i.test(summaryAll)));
+  // 2C.15: o resumo já encaminha na mesma resposta — não pergunta mais "Posso encaminhar?"
+  check('resumo informa que vai encaminhar ao especialista', () => assert.ok(/encaminhar seus dados/i.test(summaryAll)));
 
   // Criança citada sem idade: não pode cotar valor subestimado, tem que perguntar a idade
   events = [];
